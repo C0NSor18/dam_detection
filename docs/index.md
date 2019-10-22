@@ -58,8 +58,39 @@ var elevation = DSM.select(['AVE']).float();
 // add bands, and sample in a neighborhood near the coordinates
 var combinedImage = reduce_dataset.addBands(ndwi).addBands(elevation);
 ```
-The last step is a crucial one and not in any of the official GEE tutorials. In order to extract pixels in a neighborhood around the GRanD dam coordinates, we can use the ```neighborhoodToArray``` function, which does exactly what we need: It turns the neighborhood of each pixel in a scalar image into a 2D array (see image below). Axes 0 and 1 of the output array correspond to Y and X axes of the image, respectively. The output image will have as many bands as the input; each output band has the same mask as the corresponding input band. The footprint and metadata of the input image are preserved.
+The next step is a crucial one and not in any of the official GEE tutorials. In order to extract pixels in a neighborhood around the GRanD dam coordinates, we can use the ```neighborhoodToArray``` function, which does exactly what we need: It turns the neighborhood of each pixel in a scalar image into a 2D array (see image below). Axes 0 and 1 of the output array correspond to Y and X axes of the image, respectively. The output image will have as many bands as the input; each output band has the same mask as the corresponding input band. The footprint and metadata of the input image are preserved.
 
-![](neighborhoodToArray.png)
+![](images/neighborhoodToArray.png)
 
+The GEE implementation of this functionality looks like this:
+```javascript
+var sampleImage = combinedImage.neighborhoodToArray(ee.Kernel.rectangle(128,128, 'pixels')).select(['B2','B3','B4','NDWI','AVE']);
+```
+Note that we first have to define a shape (a rectangular kernel), so that the neighbohoodToArray function knows in which actual neighborhood to extract the pixels. A rectangle format of 128x128 pixels was chosen, which yields an image of 257x257.   
 
+We are almost there, but we still need an extra step before we are able to export the image patches. Right now we have defined a sampleImage variable, but this is still an image feature with 5 bands. However, we do not want to export an image, but rather a more organized table, where each record contains an image patch from the GRanD locations. So what we want is a **featurecollection**, which has as many records as there are GRanD dam locations, and where each record holds the 5 bands as 2D arrays. This can be achieved using the ```sampleRegions``` function, which is outlined below:
+
+```javascript
+var dams_neighborhoods = sampleImage.sampleRegions({
+            collection:grand,
+            properties:['DAM_NAME'],
+            scale:10,
+            tileScale:4,
+        }).map(function(feature) { return feature.set({class: 1}); });
+```
+This function takes the sampleImage we have defined above, and samples patches of 257x257 as defined in the neighborhoodToArray function, at the locations specified in the grand collection (so in a neighborhood of 128x128 around each grand dam location). Note that we also add a feature to each example in the featurecollection.
+
+We now have a featurecollection with all of the desired data, that we can now export. This is by far the easiest part, and can be done as shown below
+
+```javascript
+Export.table.toDrive({
+  collection: dams_neighborhoods,
+  folder:'Dams',
+  description: 'Grand_Dams',
+  fileFormat: 'TFRecord',
+  fileNamePrefix:'GrandDamSamples',
+  selectors: ['label', 'B2', 'B3', 'B4','AVE','NDWI']
+});
+```
+
+That's all for now.
