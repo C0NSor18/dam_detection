@@ -58,6 +58,8 @@ var elevation = DSM.select(['AVE']).float();
 // add bands, and sample in a neighborhood near the coordinates
 var combinedImage = reduce_dataset.addBands(ndwi).addBands(elevation);
 ```
-The last step is a crucial one and not in any of the official GEE tutorials. It makes use of the ```neighborhoodToArray``` function. 
+The last step is a crucial one and not in any of the official GEE tutorials. In order to extract pixels in a neighborhood around the GRanD dam coordinates, we can use the ```neighborhoodToArray``` function, which does exactly what we need: It turns the neighborhood of each pixel in a scalar image into a 2D array (see image below). Axes 0 and 1 of the output array correspond to Y and X axes of the image, respectively. The output image will have as many bands as the input; each output band has the same mask as the corresponding input band. The footprint and metadata of the input image are preserved.
+
+![](neighborhoodToArray.png)
 
 
