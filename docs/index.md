@@ -19,11 +19,6 @@ Eyeballing the locations the coordinates seem to be in the right places, altough
 The first step is to choose a satellite and the layers you want to use. For this project, I used the [Sentinel 2](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2) Multispectral Instrument (MSI) with Level-1C orthorectified top-of-atmosphere reflectance. The most common problem with using satellite images is that they can be obstructed by clouds. Luckily GEE provides a code that removes most of the clouds right off the bat:
 
 ```javscript
-/**
- * Function to mask clouds using the Sentinel-2 QA band
- * @param {ee.Image} image Sentinel-2 image
- * @return {ee.Image} cloud masked Sentinel-2 image
- */
 function maskS2clouds(image) {
   var qa = image.select('QA60');
 
@@ -32,20 +27,37 @@ function maskS2clouds(image) {
   var cirrusBitMask = 1 << 11;
 
   // Both flags should be set to zero, indicating clear conditions.
-  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
-      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0).and(
+             qa.bitwiseAnd(cirrusBitMask).eq(0));
 
-  return image.updateMask(mask).divide(10000);
+  return image.updateMask(mask).divide(10000).select('B.*').copyProperties(image, ["system:time_start"]);
 }
 
 // Map the function over one year of data and take the median.
-// Load Sentinel-2 TOA reflectance data.
-var dataset = ee.ImageCollection('COPERNICUS/S2')
-                  .filterDate('2018-01-01', '2018-06-30')
+var dataset = ee.ImageCollection('COPERNICUS/S2_SR')
+                  .filterDate('2018-01-01', '2019-05-15')
                   // Pre-filter to get less cloudy granules.
                   .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
                   .map(maskS2clouds);
+
+var reduce_dataset = dataset.median();
+var rgbVis = {min: 0.0,  max: 0.3,  bands: ['B2'],};
+
+// display masking, and rgb
+Map.addLayer(reduce_dataset.select('B2'), rgbVis, 'RGB');
 ```
 
-We will extract the RGB bands, which are encoded as B4, B3, and B2 in S2, and compute the Normalized Difference Water Index (NDWI), for which we also need the Near Infrared (NIR) band, which is named B8 in S2. All of the bands used from the S2 satellite are sampled at 10m resolution. Following the blog post from Charlotte, elevation is also factored in by using the Alos DSM. This brings up to a total of 5 bands (channels) to use for training.
+The next step is to extract the bands (channels) we would like to use for training the classifier. The bands we choose are the RGB bands, which are encoded as B4, B3, and B2 in S2, and compute the Normalized Difference Water Index (NDWI), for which we also need the Near Infrared (NIR) band, which is named B8 in S2. All of the bands used from the S2 satellite are sampled at 10m resolution. Following the blog post from Charlotte, elevation is also factored in by using the Alos DSM. This brings up to a total of 5 bands (channels) to use for training. The code for selecting, calculating, and adding the RGB, NDWI, and elevation bands is given below.
+
+```Javascript
+// Calculate NDWI
+var ndwi = reduce_dataset.normalizedDifference(['B3', 'B8']).rename('NDWI');
+// use the imported ALOS DSM map and select the AVE band (average elevation)
+var elevation = DSM.select(['AVE']).float();
+
+// add bands, and sample in a neighborhood near the coordinates
+var combinedImage = reduce_dataset.addBands(ndwi).addBands(elevation);
+```
+The last step is a crucial one and not in any of the official GEE tutorials. It makes use of the ```neighborhoodToArray``` function. 
+
 
