@@ -3,9 +3,22 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
+[Shuffle, shuffle, shuffle](#shuffleshuffleshuffle)   
 [Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update)
+
+*22 August 2019*
+## Shuffle, Shuffle, Shuffle
+Last time I covered a quick way to define a data transformation pipeline. At that moment I stil only had a single, large TFRecord that I had to parse. After reading some [discussion](https://datascience.stackexchange.com/questions/16318/what-is-the-benefit-of-splitting-tfrecord-file-into-shards/22767), I came to the conlusion that having a single 4GB TFRecord might not be the best option. For now I will explain why I think this is not best way to go, and how I solved it. 
+
+First, it might be a good idea to explain how shuffling in TFRecords actually works [(Tensorflow docs)](https://www.tensorflow.org/api_docs/python/tf/data/Dataset): if your dataset contains 10,000 elements but buffer_size is set to 1,000, then shuffle will initially select a random element from only the first 1,000 elements in the buffer. Once an element is selected, its space in the buffer is replaced by the next (i.e. 1,001-st) element, maintaining the 1,000 element buffer.
+
+This design was implemented so that data could be shuffled in memory, even with potentially huge datasets. In the end, the amount of memory necessary is tuned via the buffer size parameter. A consequence of the shuffle-queue design is that the shuffle function only allows for local randomness (inside of the queue, not across the entire record). As such, if the buffer size is not sufficiently large, then the sampled distribution will approximately have a relation with the original order.   
+
+This is important to know, because backpropagation benefits from diversified samples. Ideally, you would feed a batch with a diverse set of classes. Furthermore, when you are passing the data a next time (a new epoch), you would want the data in a completely different order from the previous epoch, since this also helps with backpropagation.
+
+
 
 *15 August 2019*
 ## Working with TFRecords
