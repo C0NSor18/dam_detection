@@ -14,9 +14,16 @@ Last time I covered a quick way to define a data transformation pipeline. At tha
 
 First, it might be a good idea to explain how shuffling in TFRecords actually works [(Tensorflow docs)](https://www.tensorflow.org/api_docs/python/tf/data/Dataset): if your dataset contains 10,000 elements but buffer_size is set to 1,000, then shuffle will initially select a random element from only the first 1,000 elements in the buffer. Once an element is selected, its space in the buffer is replaced by the next (i.e. 1,001-st) element, maintaining the 1,000 element buffer.
 
-This design was implemented so that data could be shuffled in memory, even with potentially huge datasets. In the end, the amount of memory necessary is tuned via the buffer size parameter. A consequence of the shuffle-queue design is that the shuffle function only allows for local randomness (inside of the queue, not across the entire record). As such, if the buffer size is not sufficiently large, then the sampled distribution will approximately have a relation with the original order.   
+This design was implemented so that data could be shuffled in memory, even with potentially huge datasets. In the end, the amount of memory necessary is tuned via the buffer size parameter. A consequence of the shuffle-queue design is that the shuffle function only allows for local randomness (inside of the queue, not across the entire record). As such, if the buffer size is not sufficiently large, then the sampled distribution will approximately have a relation with the original order. An illustration is shown below. The shuffle buffer is filled with elements in deterministic order. Then, an element is chosen at random and is processed further.
+
+![](images/shuffle_diagram.png)
 
 This is important to know, because backpropagation benefits from diversified samples. Ideally, you would feed a batch with a diverse set of classes. Furthermore, when you are passing the data a next time (a new epoch), you would want the data in a completely different order from the previous epoch, since this also helps with backpropagation.
+In order to get a better sampling procedure, it might thus be a good idea to set a very high buffer size, but this has its limits because the buffer has to be filled, and is limited to the amount of available memory. As a compromise, it might be better to split up my one large TFRecord into multiple smaller ones. This is done in [TFRFilter.py](https://github.com/stephandooper/dam_detection/blob/master/scripts/TFRFilter.py), which also removes any corrupted records. The final implementation then consists of using a block shuffle strategy, along with the regular shuffle method, depicted below:
+
+![](images/block_shuffle.png)
+
+
 
 
 
