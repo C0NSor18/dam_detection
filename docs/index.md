@@ -3,7 +3,7 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
-[Exploring Earth Engine](# Exploring Earth Engine)
+[Having fun with Earth Engine](#Working with Earth Engine)
 [An update](###An update)
 
 
