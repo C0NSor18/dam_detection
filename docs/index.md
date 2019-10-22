@@ -3,8 +3,8 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
-[Having fun with Earth Engine](#Working with Earth Engine)
-[An update](###An update)
+[Exploring Earth Engine](#Exploring Earth Engine)
+[An update](#An update)
 
 
 *1 August 2019*
@@ -97,3 +97,5 @@ Export.table.toDrive({
 This all took quite a while to figure out, but it did pay off.
 
 ### An update
+
+An update here
