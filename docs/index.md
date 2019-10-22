@@ -31,7 +31,27 @@ While I was working my way through the entire process of finally being able to v
 IMAGE HERE 
 
 
-Now that I am ableto visualize the images inside the TFRecords, I thought it would be time to train a first
+Now that I am able to visualize the images inside the TFRecords, I thought it would be time to creat a small network. the Dataset API expects me to define a training routine beforehand. This means that I will have to list the operations I wish to perform on the TFRecords before passing it to the Tensorflow Keras API. An example of how this is done is shown below. Keep in mind that this is a code snipper from the notebook, and can be different later on, as I do not intend to update the code snippets inside of the blog as they could become too complicated.
+
+```python
+def create_dataset(file_names, target_size, buffer_size, channels, stretch_colorspace=True, augmentations=[]):
+    files = tf.data.Dataset.list_files(file_names, shuffle=None, seed=SEED)
+    
+    dataset = tf.data.TFRecordDataset(files, compression_type='GZIP')
+    dataset = dataset.shuffle(buffer_size=buffer_size)
+
+    dataset = dataset.map(parse_serialized_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    dataset = dataset.map(parse_image(dims = target_size, channels = channels, stretch_colorspace=stretch_colorspace), 
+                          num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    dataset = dataset.batch(32)
+
+    return dataset
+```
+What this code does is actually quite simple. First, we pass the location(s) of our TFRecords into the ```list_files``` function. At the time of writing, I only had a single (large) TFRecord, obtained from GEE. Then, a Dataset object is created from the ```tf.data.TFRecordDataset``` function. Now we can easily create a pipeline of operations that have to be performed before feeding the data into the model. We start by shuffling the records, since the TFRecords are parsed in a first in first out order, and are therefore deterministic. The ```shuffling``` loads the first ```buffer_size``` elements and randomly selects one of the elements to be processed first, thus randomizing the order. 
+
+Then, we apply two map functions. The first one parses the TFRecords and converts them into a dictionary as key value pairs, which is then used in the second map function, where the images are parsed. Finally, we can create batches using the ```batch``` function, and we are now able to pass it to the keras model.
+
+
 
 
 [Working with TFRecords](https://towardsdatascience.com/working-with-tfrecords-and-tf-train-example-36d111b3ff4d)
