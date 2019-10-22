@@ -3,7 +3,7 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
-[Shuffle, shuffle, shuffle](#shuffle,shuffle,shuffle)   
+[Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)   
 [Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update)
