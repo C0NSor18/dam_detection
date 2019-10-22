@@ -3,13 +3,38 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
-[Working with TFRecords](#working-with-tfrecords)
+[Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update)
 
 *15 August 2019*
 ## Working with TFRecords
-After my last post, I was able to extract all of the images that I needed (GRanD dam locations, and some non-dam locations from [Charlotte Weil's blog post](https://medium.com/@charlotteweil/can-we-locate-dams-from-space-2a796ac8c04b), I was now finally ready to build a pipeline to parse the data and train some initial networks. The only problem was: the data was locked in TFRecords, and I had never worked with them before. This meant that I first had to read some tutorials on how to work with TFRecords. This took longer than I expected, the framework is quite difficult to learn at first, especially since you have to write several lines of code before you can get some interpretable outputs, in this case being able to view the images. Since I do not want to bother anyone with a whole tutorial on how to parse TFRecords I will simply just refer to the [Jupyter Notebook](../dam_detection.ipynb) that I created.
+TLDR: [Jupyter Notebook](https://github.com/stephandooper/dam_detection/blob/master/dam_detection.ipynb)   
+After my last post, I was able to extract all of the images that I needed (GRanD dam locations, and some non-dam locations from [Charlotte Weil's blog post](https://medium.com/@charlotteweil/can-we-locate-dams-from-space-2a796ac8c04b), I was now finally ready to build a pipeline to parse the data and train some initial networks. The only problem was: the data was locked in TFRecords, and I had never worked with them before. This meant that I first had to read some tutorials on how to work with TFRecords. 
+
+Basically, TFRecords work with a protocol buffer framework. Protocol buffers provide a mechanism to read and store data in an efficient way. What this means for us in practice is that we can work with potentially huge datasets, even if we do not have sufficient memory. After reading some tutorials I came up with a small list of the most important (dis)advantages
+
+***Advantages***
+1. The TFRecord data pipeline allows us to access huge amount of datasets, even if we do not have sufficient memory to load the entire dataset into, as explained above. All we need is enough persistent storage, and we are good to go.
+2. We can make use of the ```Dataset``` API, along with Tensorflow eager execution. This has made things significantly easier from the old school sessions-based approach. The ```Dataset``` is an iterable object, which also has some very straightforward functions, of which the most important is ```Dataset.map()```, which basically maps a user-written function over several workers. Some other useful functions are ```batch, shuffle, interleave, list_files, prefetch, repeat```. It also supports user-defined lambda expressons. Another nice thing about the Dataset api is that we can just simply pass all of our TFRecords in a single go.
+3. Parallelization & optimization: working with a TFRecord pipeline (and the Dataset API) allows us to parallelize and optimize the training procedure quite easily. Basically, the ```map``` function allows us to distribute the pre-processing across multiple workers (there is even a Spark application, which I do not use). Also, the CPU bottleneck has been addressed by creating an improved data pipeline that makes sure that the idle time of the CPU is minimzed, see [Tensorflow docs](https://www.tensorflow.org/guide/data_performance). All of this allows us to gain a huge boost in training speed, if used correctly. See for example [speeding up keras with tfrecord datasets](https://medium.com/@moritzkrger/speeding-up-keras-with-tfrecord-datasets-5464f9836c36), or [optimize tf input pipeline](https://sebastianwallkoetter.wordpress.com/2018/02/24/optimize-tf-input-pipeline/), which covers performance within a TFRecord pipeline
+
+***Disadvantages***
+1. The pipeline has a steep learning curve and takes some to implement. Since it is not as straightforward as loading a folder of images into memory, it takes a while to grasp the idea of why the TFRecord pipeline is useful, and how to use it properly. 
+2. Since we are using a Tensorflow pipeline, we sadly do not have access to several packages which make life easier. Basically, we are stuck with whatever functionality Tensorflow offers, and cannot go outside it (without explicitly converting to numpy and suffering a major performance penalty). An example of this is the ```imgaug``` package, which provides a huge number of image augmentations, which you can define in a wide variety in a flexible way. As such, we will have to create our own image augmentation and augmentation routine (when to apply which augmentation, and in which frequency) using only Tensorflow.
+
+#### Creating the pipeline
+Surely, I was only able to make up this list after having played around with the TFRecord pipeline and trying to create one myself. Admittedly , this took longer than I expected. The framework is quite difficult to learn at first, especially since you have to write several lines of code before you can get some interpretable outputs, in this case being able to view the images. Since I do not want to bother anyone with a whole tutorial on how to parse TFRecords I will simply just refer to the [Jupyter Notebook](https://github.com/stephandooper/dam_detection/blob/master/dam_detection.ipynb) that I created.
+
+While I was working my way through the entire process of finally being able to view the images that were locked away inside of the TFRecords, I noticed that they appeared to be very dark. The apparant reason for this was that the images color channels were in the range of [0, 0.3], whereas python expects either a range of [0,1] or [0,255]. A quick fix was to take the global maximum over the entire image (all 3 color channels) and divide each element in the channels by this number. The results was that the image itself is now in a range of [0,1], and looks a lot brighter, as shown below. 
+
+IMAGE HERE 
+
+
+Now that I am ableto visualize the images inside the TFRecords, I thought it would be time to train a first
+
+
+[Working with TFRecords](https://towardsdatascience.com/working-with-tfrecords-and-tf-train-example-36d111b3ff4d)
 
 *1 August 2019*
 ## Exploring Earth Engine
