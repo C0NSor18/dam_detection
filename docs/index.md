@@ -4,7 +4,7 @@ Welcome to my blog on dam detection using neural networks. This projects primari
 
 ## Table of Contents
 [Exploring Earth Engine](#exploring-earth-engine)   
-[An update](#an-update)
+1. [An update](#an-update)
 
 
 *1 August 2019*
@@ -96,6 +96,20 @@ Export.table.toDrive({
 
 This all took quite a while to figure out, but it did pay off.
 
-### An update
+### An update 10/08/2019
+Although sampleRegions is a convenient function, it does not allow for very large images to be sampled. As such, I was riddled with computation timed out errors. Luckily, I was able to find a workaround. The key idea is that sampleRegions uses image.reduceRegions in its computations. The code is shown below:
 
-An update here
+```
+// Sample grand dams
+var damSamplesGrand = grand.map(function(feature) {
+  // alternative to sampleRegion
+  return feature.set(sampleImage.reduceRegion({
+    reducer: 'first',
+    scale:10,
+    geometry: feature.geometry(),
+    tileScale:4
+  })).select(['B2', 'B3', 'B4', 'AVE', 'NDWI', 'DAM_NAME']);
+}).map(function(feature){return feature.set({label:1})});
+```
+
+This is more or less a workaround where reduceRegion is called several times. The complete story is on [GEE](https://developers.google.com/earth-engine/debugging)
