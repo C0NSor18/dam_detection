@@ -3,9 +3,13 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
+[Working with TFRecords](#working-with-tfrecords)
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update)
 
+*15 August 2019*
+## Working with TFRecords
+After my last post, I was able to extract all of the images that I needed (GRanD dam locations, and some non-dam locations from [Charlotte Weil's blog post](https://medium.com/@charlotteweil/can-we-locate-dams-from-space-2a796ac8c04b), I was now finally ready to build a pipeline to parse the data and train some initial networks. The only problem was: the data was locked in TFRecords, and I had never worked with them before. This meant that I first had to read some tutorials on how to work with TFRecords. This took longer than I expected, the framework is quite difficult to learn at first, especially since you have to write several lines of code before you can get some interpretable outputs, in this case being able to view the images. Since I do not want to bother anyone with a whole tutorial on how to parse TFRecords I will simply just refer to the [Jupyter Notebook](../dam_detection.ipynb) that I created.
 
 *1 August 2019*
 ## Exploring Earth Engine
