@@ -166,7 +166,7 @@ Export.table.toDrive({
 This all took quite a while to figure out, but it did pay off.
 
 ### An update 10/08/2019
-Although sampleRegions is a convenient function, it does not allow for very large images to be sampled. As such, I was riddled with computation timed out errors. Luckily, I was able to find a workaround. The key idea is that sampleRegions uses image.reduceRegions in its computations. The code is shown below:
+Although sampleRegions is a convenient function, it does not allow for very large images to be sampled. As such, I was riddled with computation time out errors. Luckily, I was able to find a workaround. The key idea is that sampleRegions uses image.reduceRegions in its computations, which tries to do all of the computations in a single go. Since the amount of images that need to be extracted is large, it will never be done before the computation time limit is exceeded. To circumvent this problem, we can use image.reduceRegion instead, which computes only a single coordinate. We can simply put a map with the featurecollection as data input to compute all of the image patches. This way, the computation timer resets for each individual image. The only problem is that it might be slower than the sampleRegions function, which you can read about on [GEE](https://developers.google.com/earth-engine/debugging) 
 
 ```
 // Sample grand dams
@@ -181,4 +181,4 @@ var damSamplesGrand = grand.map(function(feature) {
 }).map(function(feature){return feature.set({label:1})});
 ```
 
-This is more or less a workaround where reduceRegion is called several times. The complete story is on [GEE](https://developers.google.com/earth-engine/debugging)
+
