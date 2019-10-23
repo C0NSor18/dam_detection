@@ -48,7 +48,7 @@ Surely, I was only able to make up this list after having played around with the
 
 While I was working my way through the entire process of finally being able to view the images that were locked away inside of the TFRecords, I noticed that they appeared to be very dark. The apparant reason for this was that the images color channels were in the range of [0, 0.3], whereas python expects either a range of [0,1] or [0,255]. A quick fix was to take the global maximum over the entire image (all 3 color channels) and divide each element in the channels by this number. The results was that the image itself is now in a range of [0,1], and looks a lot brighter, as shown below. 
 
-IMAGE HERE 
+![](images/dams.png)
 
 
 Now that I am able to visualize the images inside the TFRecords, I thought it would be time to creat a small network. the Dataset API expects me to define a training routine beforehand. This means that I will have to list the operations I wish to perform on the TFRecords before passing it to the Tensorflow Keras API. An example of how this is done is shown below. Keep in mind that this is a code snipper from the notebook, and can be different later on, as I do not intend to update the code snippets inside of the blog as they could become too complicated.
