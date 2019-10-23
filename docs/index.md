@@ -6,7 +6,7 @@ Welcome to my blog on dam detection using neural networks. This projects primari
 [Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)   
 [Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
-1. [An update](#an-update)
+1. [An update](#an-update-10/08/2019)
 
 *22 August 2019*
 ## Shuffle, Shuffle, Shuffle
@@ -19,13 +19,9 @@ This design was implemented so that data could be shuffled in memory, even with 
 ![](images/shuffle_diagram.png)
 
 This is important to know, because backpropagation benefits from diversified samples. Ideally, you would feed a batch with a diverse set of classes. Furthermore, when you are passing the data a next time (a new epoch), you would want the data in a completely different order from the previous epoch, since this also helps with backpropagation.
-In order to get a better sampling procedure, it might thus be a good idea to set a very high buffer size, but this has its limits because the buffer has to be filled, and is limited to the amount of available memory. As a compromise, it might be better to split up my one large TFRecord into multiple smaller ones. This is done in [TFRFilter.py](https://github.com/stephandooper/dam_detection/blob/master/scripts/TFRFilter.py), which also removes any corrupted records. The final implementation then consists of using a block shuffle strategy, along with the regular shuffle method, depicted below:
+In order to get a better sampling procedure, it might thus be a good idea to set a very high buffer size, but this has its limits because the buffer has to be filled, and is limited to the amount of available memory. As a compromise, it might be better to split up my one large TFRecord into multiple smaller ones. This is done in [TFRFilter.py](https://github.com/stephandooper/dam_detection/blob/master/scripts/TFRFilter.py), which also removes any corrupted records or empty data slots. The final implementation then consists of using a block shuffle strategy, along with the regular shuffle method, depicted below:
 
 ![](images/block_shuffle.png)
-
-
-
-
 
 *15 August 2019*
 ## Working with TFRecords
