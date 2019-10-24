@@ -23,10 +23,58 @@ It has been a while since I posted anything dam-related. Most of my posts so far
 
 When I started this project, I had two data sources: the first one was the GRanD dataset which was a manually georeferenced dataset of dam locations with about 7300 records, and a smaller dataset with 1000 records of non-dam locations near water edges that were generated in GEE, see [Charlotte Weil's blog post](https://medium.com/@charlotteweil/can-we-locate-dams-from-space-2a796ac8c04b). I knew that this was not nearly enough data to constitute a representative dataset of (non) dam locations, so I definitely needed more. The major cases here were:
 
-1. Getting more dam locations. At the time of writing, I could still get more data from the [Global Dam Watch](http://globaldamwatch.org/), especially the GOOD
-This is some <sub>subscript</sub> text.
+1. I could still get more data from the [Global Dam Watch](http://globaldamwatch.org/), especially the GOOD<sup>2</sup> dataset is interesting since it contains over 30000 dams, both large and medium sized. There are also some secondary sources, such as the U.S. NDI dataset, which features dams in the United Stated.
+2. Obtaining bridge data could also come in handy. At this time I am not sure whether the neural network would be able to keep apart bridges from dams, so this seems like a nice hypothesis to test. But in order to do this, I would need data on bridges. I was quite disappointed to find that there are not all that many datasets available, except for the extensive [NBI dataset](https://www.fhwa.dot.gov/bridge/nbi.cfm). The data are simply a set of (non)-delimited ASCII files, and have to be converted in shapefiles manually, which I did [here](https://github.com/stephandooper/dam_detection/tree/master/NBI).
+3. Getting other non-dam locations. I was not satisfied with only having 1000 negative samples to traing with. Since I had access to GEE, I could practically obtain an unlimited amount of non dam samples, which I will explain further below.
+
+Charlotte's blog post did say that they sampled the negative examples in a smart way by sampling in the neighborhood of water edges (locations where water meets land), since they could be hard to learn. The only problem is that they did not write *how* they did it other than they used the [JRC GSW (v1.1)](https://developers.google.com/earth-engine/datasets/catalog/JRC_GSW1_1_GlobalSurfaceWater) layer, so this took some time to figure out, and I created my own solution in GEE to do this, which are outlined in the following steps:
+
+1. I started by selecting the *occurrence* band from the JRC GWS layer, which displays water occurrence across continents.
+2. Then, I proceeded by using a [Canny edge detector](https://en.wikipedia.org/wiki/Canny_edge_detector) on the occurrence band, and masked the result with itself. 
+
+The code to reproduce this is given below, along with an extra steps to remove large values from the edge detector, since there were some very thich edges along the coasts of the continent that I did not want to sample from.
+
+```javascript
+// Detect edges in the occurence image
+//Map.addLayer(occurrence,VIS_OCCURRENCE,'updated water');
+var canny = ee.Algorithms.CannyEdgeDetector(occurrence, 60, 1);
+
+// Mask the image with itself to get rid of areas with no edges.
+// border have value occurence, non border values are 0
+canny = canny.updateMask(canny);
 
 
+// Remove outer boundary in the ocean (outer boundary near continents)
+var newmask = canny.gte(220).not();
+
+Map.addLayer(canny.updateMask(newmask), {min: 0, max: 150, palette: 'FF0000'}, 'canny edges');
+Map.addLayer(canny, {min: 0, max: 150, palette: 'FF0000'}, 'canny edges no mask');
+
+canny = canny.updateMask(newmask);
+```
+
+Then, I simply defined several regions of interest, and sampled along the Canny edges inside of my ROI (example only includes the USA, but in reality I did define more regions):
+
+```javascript
+function sampleRegion(region, factor){
+  var sampledRegion = canny.sample(
+    { region: region, 
+      geometries: true, 
+      scale: 100, 
+      factor: factor, 
+      tileScale: 1,
+      seed:1
+    });
+  return sampledRegion;
+}
+
+// --> high factor, high scale
+// US
+var sampledUS = sampleRegion(USA, 0.0002);
+// compute the size of the sampled points
+print("# points US", sampledUS.size());
+Map.addLayer(sampledUS,{color: "blue"},'US samples');
+```
 
 *16 September 2019*
 ## Logging experiments with Sacred and Omniboard
