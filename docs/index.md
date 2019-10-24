@@ -4,7 +4,7 @@ Welcome to my blog on dam detection using neural networks. This projects primari
 
 ## Table of Contents
 [Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)  
-[A problem with elevation](#aproblemwithelevation)
+[A problem with elevation](#a-problem-with-elevation)   
 [Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update-10082019)
