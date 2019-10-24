@@ -42,7 +42,7 @@ The error message was actually quite clear for once: there was no B2 (blue) chan
 
 ![](images/dsm.png)
 
-
+It turns out that there are many stripes where elevation data is missing, and there are several dam locations in those areas where data is missing, which explains the error. At this point I had no other choice but to filter out these dam locations if I wanted to use elevation, which is what I ended up doing. Luckily, there were not many dam locations that needed to be filtered and the impact seems minimal, but it might be a hurdle in the future if someone wants to run an anlysis in the northern hemisphere.
 
 *15 August 2019*
 ## Working with TFRecords
