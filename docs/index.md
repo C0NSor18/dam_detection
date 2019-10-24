@@ -3,6 +3,7 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
+[Getting reproducibility in Tensorflow GPU](#getting-reproducibility-in-tensorflow-gpu)
 [Logging experiments with Sacred and Omniboard](#logging-experiments-with-sacred-and-omniboard)
 [Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)  
 [A problem with elevation](#a-problem-with-elevation)   
