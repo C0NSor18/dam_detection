@@ -17,6 +17,17 @@ Lately I have been training several models and I noticed that my losses and metr
 
 Naturally, I started looking for a solution, but I could not find anything useful, other then [disabling the GPU entirely](https://stackoverflow.com/questions/45230448/how-to-get-reproducible-result-when-running-keras-with-tensorflow-backend), which I do not really constitute as a fix. However, there now is a fix in the [tensorflow-determinism](https://github.com/NVIDIA/tensorflow-determinism) package. All I had to do is install it and add a single line of code (given in the docs) and I was done. Reproducibility at last!
 
+* 30 September 2019
+## Getting more data
+It has been a while since I posted anything dam-related. Most of my posts so far have only been about pipeline creation and some design decisions. Although it is still too early to give some analysis results (or at least I feel they are not really all that interesting yet), I think I can write some more about the data sources and its distribution. 
+
+When I started this project, I had two data sources: the first one was the GRanD dataset which was a manually georeferenced dataset of dam locations with about 7300 records, and a smaller dataset with 1000 records of non-dam locations near water edges that were generated in GEE, see [Charlotte Weil's blog post](https://medium.com/@charlotteweil/can-we-locate-dams-from-space-2a796ac8c04b). I knew that this was not nearly enough data to constitute a representative dataset of (non) dam locations, so I definitely needed more. The major cases here were:
+
+1. Getting more dam locations. At the time of writing, I could still get more data from the [Global Dam Watch](http://globaldamwatch.org/), especially the GOOD
+This is some <sub>subscript</sub> text.
+
+
+
 *16 September 2019*
 ## Logging experiments with Sacred and Omniboard
 During my medical imaging course, I was introduced with [Sacred](https://github.com/IDSIA/sacred) and [Omniboard](https://github.com/vivekratnavel/omniboard), and I felt it would be a good idea to use them for this project as well. The former is a tool that can be used to log, organize, and even help reproduce experiments, whereas the latter is a web dashboard to visualize the data logged in Sacred. The way it works is that we can set up a [MongoDB](https://www.mongodb.com/) instance, which serves as the databased where all of the configuration data and logs will be stored from Sacred. The exact way on how to connect Sacred with a MongoDB instance is explained in the [Sacred docs page](https://sacred.readthedocs.io/en/stable/observers.html#mongo-observer). There are also several features for authentification. 
