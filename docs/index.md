@@ -3,16 +3,20 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
-[Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)   
+[Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)  
+[A problem with elevation](#aproblemwithelevation)
 [Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
-1. [An update](#an-update-10/08/2019)
+1. [An update](#an-update-10082019)
 
-*22 August 2019*
+
+
+
+*2 September 2019*
 ## Shuffle, Shuffle, Shuffle
-Last time I covered a quick way to define a data transformation pipeline. At that moment I stil only had a single, large TFRecord that I had to parse. After reading some [discussion](https://datascience.stackexchange.com/questions/16318/what-is-the-benefit-of-splitting-tfrecord-file-into-shards/22767), I came to the conlusion that having a single 4GB TFRecord might not be the best option. For now I will explain why I think this is not best way to go, and how I solved it. 
+Last time I covered a quick way to define a data transformation pipeline. At that moment I stil only had a single, large TFRecord that I had to parse. After reading some [discussions](https://datascience.stackexchange.com/questions/16318/what-is-the-benefit-of-splitting-tfrecord-file-into-shards/22767), I came to the conlusion that having a single 4GB TFRecord might not be the best option. For now I will explain why I think this is not best way to go, and how I solved it. 
 
-First, it might be a good idea to explain how shuffling in TFRecords actually works [(Tensorflow docs)](https://www.tensorflow.org/api_docs/python/tf/data/Dataset): if your dataset contains 10,000 elements but buffer_size is set to 1,000, then shuffle will initially select a random element from only the first 1,000 elements in the buffer. Once an element is selected, its space in the buffer is replaced by the next (i.e. 1,001-st) element, maintaining the 1,000 element buffer.
+First, it might be a good idea to explain how shuffling in TFRecords actually works [(Tensorflow docs)](https://www.tensorflow.org/api_docs/python/tf/data/Dataset): if your dataset contains 10,000 elements but the buffer_size is set to 1,000, then shuffle will initially select a random element from only the first 1,000 elements in the buffer. Once an element is selected, its space in the buffer is replaced by the next (i.e. 1,001-st) element, maintaining the 1,000 element buffer.
 
 This design was implemented so that data could be shuffled in memory, even with potentially huge datasets. In the end, the amount of memory necessary is tuned via the buffer size parameter. A consequence of the shuffle-queue design is that the shuffle function only allows for local randomness (inside of the queue, not across the entire record). As such, if the buffer size is not sufficiently large, then the sampled distribution will approximately have a relation with the original order. An illustration is shown below. The shuffle buffer is filled with elements in deterministic order. Then, an element is chosen at random and is processed further.
 
@@ -23,17 +27,34 @@ In order to get a better sampling procedure, it might thus be a good idea to set
 
 ![](images/block_shuffle.png)
 
+
+This new way of shuffling gives me far more freedom to shuffle the data that I have. 
+
+*22 August 2019*
+## A problem with elevation
+While debugging the pipeline I found that I kept getting several errors while parsing through the TFRecords. Most notably I was stuck on this specific one:
+
+```python
+Feature: B2 (data type: float) is required but could not be found. [[{{node ParseSingleExample/ParseSingleExample}}]] [Op:IteratorGetNextSync].
+```
+
+The error message was actually quite clear for once: there was no B2 (blue) channel for a specific example inside of the TFRecord, but the thing that confused me the most was: why was it not there? Although it took some time, I finally realized it was because there was no satellite data available at the specific location and date range where I was rendering the image patches. The easiest solution was to increase the date range in the ```filterDate``` for the Sentinel 2 images, but this did not really solve the bigger problem with another data band I was using: the elevation band (ALOS DSM 30m). It turns out that this band has a lot of missing data in the northern hemisphere due to clouds, snow, etc. You can see this in the image below
+
+![](images/dsm.png)
+
+
+
 *15 August 2019*
 ## Working with TFRecords
 TLDR: [Jupyter Notebook](https://github.com/stephandooper/dam_detection/blob/master/dam_detection.ipynb)   
-After my last post, I was able to extract all of the images that I needed (GRanD dam locations, and some non-dam locations from [Charlotte Weil's blog post](https://medium.com/@charlotteweil/can-we-locate-dams-from-space-2a796ac8c04b), I was now finally ready to build a pipeline to parse the data and train some initial networks. The only problem was: the data was locked in TFRecords, and I had never worked with them before. This meant that I first had to read some tutorials on how to work with TFRecords. 
+After my last post, I was able to extract all of the images that I needed (GRanD dam locations, and some non-dam locations from [Charlotte Weil's blog post](https://medium.com/@charlotteweil/can-we-locate-dams-from-space-2a796ac8c04b). I was now finally ready to build a pipeline to parse the data and train some initial networks. The only problem was: the data was locked in TFRecords, and I had never worked with them before. This meant that I first had to read some tutorials on how to work with TFRecords. 
 
 Basically, TFRecords work with a protocol buffer framework. Protocol buffers provide a mechanism to read and store data in an efficient way. What this means for us in practice is that we can work with potentially huge datasets, even if we do not have sufficient memory. After reading some tutorials I came up with a small list of the most important (dis)advantages
 
 ***Advantages***
 1. The TFRecord data pipeline allows us to access huge amount of datasets, even if we do not have sufficient memory to load the entire dataset into, as explained above. All we need is enough persistent storage, and we are good to go.
-2. We can make use of the ```Dataset``` API, along with Tensorflow eager execution. This has made things significantly easier from the old school sessions-based approach. The ```Dataset``` is an iterable object, which also has some very straightforward functions, of which the most important is ```Dataset.map()```, which basically maps a user-written function over several workers. Some other useful functions are ```batch, shuffle, interleave, list_files, prefetch, repeat```. It also supports user-defined lambda expressons. Another nice thing about the Dataset api is that we can just simply pass all of our TFRecords in a single go.
-3. Parallelization & optimization: working with a TFRecord pipeline (and the Dataset API) allows us to parallelize and optimize the training procedure quite easily. Basically, the ```map``` function allows us to distribute the pre-processing across multiple workers (there is even a Spark application, which I do not use). Also, the CPU bottleneck has been addressed by creating an improved data pipeline that makes sure that the idle time of the CPU is minimzed, see [Tensorflow docs](https://www.tensorflow.org/guide/data_performance). All of this allows us to gain a huge boost in training speed, if used correctly. See for example [speeding up keras with tfrecord datasets](https://medium.com/@moritzkrger/speeding-up-keras-with-tfrecord-datasets-5464f9836c36), or [optimize tf input pipeline](https://sebastianwallkoetter.wordpress.com/2018/02/24/optimize-tf-input-pipeline/), which covers performance within a TFRecord pipeline
+2. We can make use of the ```Dataset``` API, along with Tensorflow eager execution. This has made things significantly easier from the old school sessions-based approach. ```Dataset``` is an iterable object, which also has some very straightforward functions, of which the most important is ```Dataset.map()```, which basically maps a user-written function over several workers. Some other useful functions are ```batch, shuffle, interleave, list_files, prefetch, repeat```. It also supports user-defined lambda expressons.
+3. Parallelization & optimization: working with a TFRecord pipeline (and the Dataset API) allows us to parallelize and optimize the training procedure quite easily. Basically, the ```map``` function allows us to distribute the pre-processing across multiple workers (there is even a Spark application, which I do not use). Also, the CPU bottleneck has been addressed by creating a data pipeline that makes sure that the idle time of the CPU and GPU is minimzed (they basically improved the scheduling), see [Tensorflow docs](https://www.tensorflow.org/guide/data_performance). All of this allows us to gain a huge boost in training speed, if used correctly. See for example [speeding up keras with tfrecord datasets](https://medium.com/@moritzkrger/speeding-up-keras-with-tfrecord-datasets-5464f9836c36), or [optimize tf input pipeline](https://sebastianwallkoetter.wordpress.com/2018/02/24/optimize-tf-input-pipeline/), which covers performance within a TFRecord pipeline
 
 ***Disadvantages***
 1. The pipeline has a steep learning curve and takes some to implement. Since it is not as straightforward as loading a folder of images into memory, it takes a while to grasp the idea of why the TFRecord pipeline is useful, and how to use it properly. 
@@ -65,9 +86,7 @@ def create_dataset(file_names, target_size, buffer_size, channels, stretch_color
 ```
 What this code does is actually quite simple. First, we pass the location(s) of our TFRecords into the ```list_files``` function. At the time of writing, I only had a single (large) TFRecord, obtained from GEE. Then, a Dataset object is created from the ```tf.data.TFRecordDataset``` function. Now we can easily create a pipeline of operations that have to be performed before feeding the data into the model. We start by shuffling the records, since the TFRecords are parsed in a first in first out order, and are therefore deterministic. The ```shuffling``` loads the first ```buffer_size``` elements and randomly selects one of the elements to be processed first, thus randomizing the order. 
 
-Then, we apply two map functions. The first one parses the TFRecords and converts them into a dictionary as key value pairs, which is then used in the second map function, where the images are parsed. Finally, we can create batches using the ```batch``` function, and we are now able to pass it to the keras model.
-
-
+Then, we apply two map functions. The first one parses the TFRecords and converts them into a dictionary as key value pairs, which is then used in the second map function, where the images are parsed. Finally, we can create batches using the ```batch``` function, and we are now able to pass it to a keras model, which can be found in the notebook.
 
 
 [Working with TFRecords](https://towardsdatascience.com/working-with-tfrecords-and-tf-train-example-36d111b3ff4d)
