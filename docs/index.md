@@ -30,7 +30,7 @@ CMD ["--mu", "mongodb+srv://my-username:my-password@my-cluster-v9zjk.mongodb.net
 ```
 
 All that is left is to build a working Omniboard instance inside Docker, and simply push it to Heroku (a tutorial on how to do this can be found in the [Heroku docs](https://devcenter.heroku.com/articles/container-registry-and-runtime). Once I built the image and pushed it to container registry, I was done, and I finally had a running container on Heroku, which I can access at any time without having to start Omniboard myself every single time I want to work on my project. The dashboard looks something like this:
-![](images/omniboard.png)
+![](images/omniboard1.png)
 
 
 
