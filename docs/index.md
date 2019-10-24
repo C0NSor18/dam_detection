@@ -3,12 +3,34 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
+[Logging experiments with Sacred and Omniboard](#logging-experiments-with-sacred-and-omniboard)
 [Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)  
 [A problem with elevation](#a-problem-with-elevation)   
 [Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update-10082019)
 
+*16 September 2019*
+## Logging experiments with Sacred and Omniboard
+During my medical imaging course, I was introduced with [Sacred](https://github.com/IDSIA/sacred) and [Omniboard](https://github.com/vivekratnavel/omniboard), and I felt it would be a good idea to use them for this project as well. The former is a tool that can be used to log, organize, and even help reproduce experiments, whereas the latter is a web dashboard to visualize the data logged in Sacred. The way it works is that we can set up a [MongoDB](https://www.mongodb.com/) instance, which serves as the databased where all of the configuration data and logs will be stored from Sacred. The exact way on how to connect Sacred with a MongoDB instance is explained in the [Sacred docs page](https://sacred.readthedocs.io/en/stable/observers.html#mongo-observer). There are also several features for authentification. 
+
+Once we have a Sacred instance running with MongoDB, we still cannot do much without any decent organized visualization of all the data that we stored, so this is where Omniboard comes in. Setting up an Omniboard instance on a local machine is not really that hard using the [quick start](https://vivekratnavel.github.io/omniboard/#/quick-start) instructions. In fact, after using ```pip``` to install the required packages, all that needs to be done is to run the omniboard instance with the following codes, replacing the strings in "<>" with your own information:
+
+```cmd
+omniboard --mu "mongodb://<username>:<password>@<host>/<database>[?options]"
+```
+However, it is quite tiresome to keep loading omniboard on a local machine as part of a start up routine. Instead, it would be easier to set up once on a dedicated server, at which point it would run constantly. This makes more sense as Omniboard is a *web* dashboard. Finding such a dedicated server for *free* was a bit of a hassle, since most web services like Microsoft Azure, Amazon Web Services (AWS), and Google Cloud Platform (GCP) require you to pay for their services, give only a free trial on the instances that are needed, or ask some kind of payment information which I did not want to provide. Fortunately I came across another well known hosting service: [Heroku](https://www.heroku.com/), which allowed me to host (node) JS apps for free. 
+
+Setting up the Omniboard instance on Heroku also proved to be difficult: when I tried building on the platform itself, I was riddled with dependency and package errors. Since I was not familiar with the ```npm``` or javascript related problems at all (besides GEE) I hit a wall, and admitted defeat (thus continued to run Omniboard locally). 
+
+Luckily, I saw later that Heroku supports [Docker](https://www.docker.com/) instances, and I recalled using it during my Big Data course. At the time I was told that it is basically a way to run a program inside a container without any hassle. Back then, I did not really see the point in using it, and it seemed to just take up more time instead, as you would have to take into account the overhead of starting up the entire docker instance. Now, however, I saw that it could be very useful: all I had to do was build Omniboard myself just once succesfully, and push the resulting Docker image to Heroku, and to make things even better, Omniboard already has an [available Dockerfile](https://hub.docker.com/r/vivekratnavel/omniboard/dockerfile). The only things that were left were: (re)install docker, npm to build Omniboard, git clone Omniboard onto my desktop, copy the Dockerfile, and put it all together. I did have to add an extra CMD argument to the Dockerfile at the end to run it with the --mu parameter and authorization, which looked like this (ofcourse, the username, password, and database name were changed in this example):
+
+```
+CMD ["--mu", "mongodb+srv://my-username:my-password@my-cluster-v9zjk.mongodb.net/sacred?retryWrites=true"]
+```
+
+All that is left is to build a working Omniboard instance inside Docker, and simply push it to Heroku (a tutorial on how to do this can be found in the [Heroku docs](https://devcenter.heroku.com/articles/container-registry-and-runtime). Once I built the image and pushed it to container registry, I was done, and I finally had a running container on Heroku, which I can access at any time without having to start Omniboard myself every single time I want to work on my project. The dashboard looks something like this:
+![](images/omniboard.png)
 
 
 
