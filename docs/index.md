@@ -10,6 +10,12 @@ Welcome to my blog on dam detection using neural networks. This projects primari
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update-10082019)
 
+* 11 October 2019*
+## Getting reproducibility in Tensorflow GPU
+Lately I have been training several models and I noticed that my losses and metrics were not producing the same result in Tensorflow with GPU and with Tensorflow Keras (not the standalone Keras). A quick ablation analysis lead me to believe the main culprit was the GPU: after disabling the GPU and training on the CPU, I found that my experiments were reproducible, but when GPU was involved it was not. This is not entirely strange though, since GPU computations are incredibly complex, and ensuring determinism is a daunting task. I found that there were several culprits, such as the ```tf.math.reduce_sum``` and ```tf.math.reduce_mean``` not being deterministic, despite having set a seed. 
+
+Naturally, I started looking for a solution, but I could not find anything useful, other then [disabling the GPU entirely](https://stackoverflow.com/questions/45230448/how-to-get-reproducible-result-when-running-keras-with-tensorflow-backend), which I do not really constitute as a fix. However, there now is a fix in the [tensorflow-determinism](https://github.com/NVIDIA/tensorflow-determinism) package. All I had to do is install it and add a single line of code (given in the docs) and I was done. Reproducibility at last!
+
 *16 September 2019*
 ## Logging experiments with Sacred and Omniboard
 During my medical imaging course, I was introduced with [Sacred](https://github.com/IDSIA/sacred) and [Omniboard](https://github.com/vivekratnavel/omniboard), and I felt it would be a good idea to use them for this project as well. The former is a tool that can be used to log, organize, and even help reproduce experiments, whereas the latter is a web dashboard to visualize the data logged in Sacred. The way it works is that we can set up a [MongoDB](https://www.mongodb.com/) instance, which serves as the databased where all of the configuration data and logs will be stored from Sacred. The exact way on how to connect Sacred with a MongoDB instance is explained in the [Sacred docs page](https://sacred.readthedocs.io/en/stable/observers.html#mongo-observer). There are also several features for authentification. 
@@ -31,6 +37,9 @@ CMD ["--mu", "mongodb+srv://my-username:my-password@my-cluster-v9zjk.mongodb.net
 
 All that is left is to build a working Omniboard instance inside Docker, and simply push it to Heroku (a tutorial on how to do this can be found in the [Heroku docs](https://devcenter.heroku.com/articles/container-registry-and-runtime). Once I built the image and pushed it to container registry, I was done, and I finally had a running container on Heroku, which I can access at any time without having to start Omniboard myself every single time I want to work on my project. The dashboard looks something like this:
 ![](images/omniboard1.png)
+
+### About Sacred Reproducibility 
+An important thing to know is that it is possible to set a general seed using Sacred, which simplifies reproducibility since it will basically 'take care of everything' for you. The only downside is that this does not hold for tensorflow. Although Sacred will be able to set a seed for ```random``` and ```numpy```, it seems tensorflow reproducibility still needs to be done the old fashioned way.
 
 
 
