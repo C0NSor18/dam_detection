@@ -27,6 +27,7 @@ When I started this project, I had two data sources: the first one was the GRanD
 2. Obtaining bridge data could also come in handy. At this time I am not sure whether the neural network would be able to keep apart bridges from dams, so this seems like a nice hypothesis to test. But in order to do this, I would need data on bridges. I was quite disappointed to find that there are not all that many datasets available, except for the extensive [NBI dataset](https://www.fhwa.dot.gov/bridge/nbi.cfm). The data are simply a set of (non)-delimited ASCII files, and have to be converted in shapefiles manually, which I did [here](https://github.com/stephandooper/dam_detection/tree/master/NBI).
 3. Getting other non-dam locations. I was not satisfied with only having 1000 negative samples to traing with. Since I had access to GEE, I could practically obtain an unlimited amount of non dam samples, which I will explain further below.
 
+### Sampling near water edges
 Charlotte's blog post did say that they sampled the negative examples in a smart way by sampling in the neighborhood of water edges (locations where water meets land), since they could be hard to learn. The only problem is that they did not write *how* they did it other than they used the [JRC GSW (v1.1)](https://developers.google.com/earth-engine/datasets/catalog/JRC_GSW1_1_GlobalSurfaceWater) layer, so this took some time to figure out, and I created my own solution in GEE to do this, which are outlined in the following steps:
 
 1. I started by selecting the *occurrence* band from the JRC GWS layer, which displays water occurrence across continents.
@@ -55,6 +56,7 @@ canny = canny.updateMask(newmask);
 
 Then, I simply defined several regions of interest, and sampled along the Canny edges inside of my ROI (example only includes the USA, but in reality I did define more regions):
 
+
 ```javascript
 function sampleRegion(region, factor){
   var sampledRegion = canny.sample(
@@ -75,6 +77,16 @@ var sampledUS = sampleRegion(USA, 0.0002);
 print("# points US", sampledUS.size());
 Map.addLayer(sampledUS,{color: "blue"},'US samples');
 ```
+
+### Other non dam locations
+Since water edges are not the only negative samples that should be considered, I also sampled random points over all continents by using the following code
+
+```
+var sampledRoi = ee.FeatureCollection.randomPoints(roi,numSample, 0, SEED);
+Map.addLayer(sampledRoi, {color: 'orange'}, 'roi');
+
+```
+
 
 *16 September 2019*
 ## Logging experiments with Sacred and Omniboard
