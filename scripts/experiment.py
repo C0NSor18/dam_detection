@@ -7,7 +7,6 @@ Created on Sat Sep 21 18:49:05 2019
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 from tensorflow.keras.callbacks import Callback, ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
-
 import pymongo
 from sacred import Experiment
 from sacred.observers import MongoObserver
@@ -17,11 +16,13 @@ import datetime
 from models.convnet import build_convnet
 from models.fcn import build_fcn
 from models.densenet import build_densenet121
+from models.dilated_fcn import build_dilated_fcn_61
 from datasets.load_data import load_data
 import tensorflow.keras.backend as K
 from generators.tf_parsing import create_training_dataset, validate, num_files
 from pprint import pprint
 import numpy as np
+
 from tfdeterminism import patch
 patch()
 # TODO: add target size as a variable parameters both in the generators as well as the models
@@ -46,6 +47,7 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 model_dict = {
 	'convnet': build_convnet,
 	'fcn': build_fcn,
+	'dilated_fcn': build_dilated_fcn_61,
 	'densenet121': build_densenet121
 }
 
@@ -99,9 +101,10 @@ def run_experiment(config, reproduce_result=None):
 		batch_size = data_params.get('batch_size')
 		stretch_colorspace = data_params.get('stretch_colorspace')
 		augmentations = data_params.get('augmentations')
-		bridge_separate = data_params.get('bridge_separate')
-		buffer_size = data_params.get('buffer_size')
-
+		bridge_separate = data_params.get('bridge_separate') # bridges as separate labels?
+		buffer_size = data_params.get('buffer_size') # the buffer sizes for shuffling
+		use_sampling = data_params.get('use_sampling')
+		class_target_prob = 1 / model_params.get('num_classes')
 		print("[!] list of parameter configurations")
 		pprint(config)
 		
@@ -118,7 +121,7 @@ def run_experiment(config, reproduce_result=None):
 		
 		# Load data and define generators ------------------------------------------
 		print("[!] loading datasets \n")
-		x_train, y_train, x_val, y_val, x_test, y_test = load_data(False)
+		x_train, y_train, x_val, y_val, x_test, y_test, probs = load_data(bridge_separate)
 		
 		# get a rough estimate: there are 100 files per TFRecord
 		# except for one TFRecord per item, so this estimate might not be 100% correct
@@ -127,11 +130,14 @@ def run_experiment(config, reproduce_result=None):
 		# TF parsing functions
 		print("[!] Creating dataset iterators \n")
 		# Load the dataset iterators
+		
 		train_dataset = create_training_dataset(x_train, batch_size, bridge_separate,
-                                          buffer_size, stretch_colorspace, augmentations,
+                                          buffer_size, stretch_colorspace, 
+										  use_sampling, probs, class_target_prob,
+										  augmentations,
                                           **model_params)
 		val_dataset = validate(x_val, batch_size, bridge_separate, stretch_colorspace, **model_params)
-		test_dataset = validate(x_test, batch_size, bridge_separate, stretch_colorspace, **model_params)
+		test_dataset = validate(x_test, batch_size, bridge_separate, stretch_colorspace, **model_params)		
 		
 		# Model definitions --------------------------------------------------------
 		print("[!] compiling model and adding callbacks \n")
@@ -209,3 +215,10 @@ def run_experiment(config, reproduce_result=None):
 	runner = ex.run()
 	return runner     
 
+
+'''
+	x = [0, 0, 0]
+	for img,label in train_dataset:
+	    x += label
+	print(x)
+'''

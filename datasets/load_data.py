@@ -10,7 +10,9 @@ from os.path import join, dirname, abspath
 import numpy as np
 from glob import glob
 from sklearn.model_selection import train_test_split
-
+from collections import Counter
+import re
+from pprint import pprint
 # Load data in its own file
 
 # TODO: BALANCED SAMPLING?
@@ -19,9 +21,9 @@ def load_data(bridge_separate):
 	
 	data_path = dirname(abspath(__file__))
 	print(" EXTRACTING DATA FROM: {} \n".format(data_path))
-	grand = glob(join(data_path, 'data/grand*.gz'))[0:30]
-	good = glob(join(data_path, 'data/good*.gz'))[0:30]
-	bridges = glob(join(data_path, 'data/bridges*.gz'))[0:30]
+	grand = glob(join(data_path, 'data/grand*.gz'))[0:20]
+	good = glob(join(data_path, 'data/good*.gz'))[0:20]
+	bridges = glob(join(data_path, 'data/bridges*.gz'))[0:20]
 	other = glob(join(data_path, 'data/other*.gz'))[0:30]
 	
 	# create artificial dummy labels for train/validation/test splits later on
@@ -43,9 +45,30 @@ def load_data(bridge_separate):
 	# dataset/test split -> unbalanced as a real world example
 	temp_data, temp_labels, x_test, y_test, test_idx = split_training_validation_datasets(np.asarray(records), np.array(labels), val_percentage=0.2, val_balanced='stratified')
 	x_train, y_train, x_val, y_val, val_idx = split_training_validation_datasets(temp_data, temp_labels, val_percentage =0.1, val_balanced='balanced')
+
+
+	# Calculate probabilities in training set for sampling
+	string_lst = ['grand', 'other', 'bridges', 'good']
+	prog = re.compile(r"(?=("+'|'.join(string_lst)+r"))")
+	results = Counter(np.array([prog.findall(x) for x in x_train]).flatten())
 	
+	class_counts = results
+	print(class_counts)
+	total_counts = sum(class_counts.values())
 	
-	print("WARNING: BRIDGES ARE NOT USED YET!!!!!")
+	probs = {}
+	# in case bridges have separate labels
+	probs['dams'] = (class_counts['grand'] + class_counts['good']) / total_counts
+	if bridge_separate:
+		print("WARNING: BRIDGES HAVE SEPARATE LABELS!!!!!")
+		# bridges as separate classifier
+		probs['bridges'] = class_counts['bridges'] / total_counts
+		probs['other'] = class_counts['other'] / total_counts	
+	
+	else:
+		# dams and other (including bridges)
+		probs['other'] =(class_counts['other'] + class_counts['bridges'] ) / total_counts
+	
 	
 	print("DATA    |  NUMBER OF TFRECORDS             ")
 	print("-------------------------------------")
@@ -67,7 +90,9 @@ def load_data(bridge_separate):
 	print("-------------------------------------")
 	print("TOTAL       |        {} \n".format(len(x_train) + len(x_val) + len(x_test)))
 	
-	return x_train, y_train, x_val, y_val, x_test, y_test
+	print("class probabilities in training set are:", probs)
+	
+	return x_train, y_train, x_val, y_val, x_test, y_test, probs
 
 
 

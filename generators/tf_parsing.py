@@ -8,7 +8,8 @@ Created on Sat Sep 28 01:14:36 2019
 import tensorflow as tf
 import numpy as np
 from scripts.constants import SEED
-
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 # TODO: ADD TARGET SIZE AS A VARIABLE PARAMETER                        DONE
 # TODO: ADD BATCH SIZE                                                 DONE
 # TODO: CONNECTION WITH experiment.py and omniboard                    DONE
@@ -118,28 +119,111 @@ def parse_image(target_size, channels, bridge_separate, stretch_colorspace=True)
     
     return parse_image_fun
 
+
+
+def undersampling_filter(probs, class_target_prob, bridge_sep_label=False, undersampling_coef = 0.9):
+	# higher undersampling_coef (a>1)  leads to heavier undersampling,  (a<1) leads to lessened undersampling
+    def wrapper(example):
+        """
+        Computes if given example is rejected or not.
+        """
+        label = example['label']
+        label = tf.unstack(tf.cast(label, dtype = tf.int32))  
+
+        dam_label = tf.constant(1)
+        other_label = tf.constant(0)
+        
+        def other_fun(): return probs['other']
+        def dam_fun(): return probs['dams']
+        if bridge_sep_label:
+            def bridge_fun(): return probs['bridges']
+            def cond2(): return tf.cond(tf.equal(label[0], other_label), other_fun, bridge_fun)
+            class_prob = tf.cond(tf.equal(label[0], dam_label), dam_fun, cond2)
+        else:
+            class_prob = tf.cond(tf.equal(label[0], dam_label), dam_fun, other_fun)
+
+        prob_ratio = tf.cast(class_target_prob/class_prob, dtype=tf.float32)
+        prob_ratio = prob_ratio ** undersampling_coef
+        prob_ratio = tf.minimum(prob_ratio, 1.0)
+
+        acceptance = tf.less_equal(tf.random_uniform([], dtype=tf.float32, seed=SEED), prob_ratio)
+        # predicate must return a scalar boolean tensor
+        return acceptance
+
+    return wrapper
+
+
+def oversampling_filter(probs, class_target_prob, bridge_sep_label, oversampling_coef =0.9):
+    
+    def wrapper(example):
+        """
+        Computes if given example is rejected or not.
+        """
+        label = example['label']
+        label = tf.unstack(tf.cast(label, dtype = tf.int32))  
+
+        dam_label = tf.constant(1)
+        other_label = tf.constant(0)
+        
+        def other_fun(): return probs['other']
+        def dam_fun(): return probs['dams']
+        if bridge_sep_label:
+            def bridge_fun(): return probs['bridges']
+            def cond2(): return tf.cond(tf.equal(label[0], other_label), other_fun, bridge_fun)
+            class_prob = tf.cond(tf.equal(label[0], dam_label), dam_fun, cond2)
+        else:
+            class_prob = tf.cond(tf.equal(label[0], dam_label), dam_fun, other_fun)
+        
+        prob_ratio = tf.cast(class_target_prob/class_prob, dtype=tf.float32)
+        # soften ratio is oversampling_coef==0 we recover original distribution
+        prob_ratio = prob_ratio ** oversampling_coef 
+        # for classes with probability higher than class_target_prob we
+        # want to return 1
+        prob_ratio = tf.maximum(prob_ratio, 1) 
+        # for low probability classes this number will be very large
+        repeat_count = tf.floor(prob_ratio)
+        # prob_ratio can be e.g 1.9 which means that there is still 90%
+        # of change that we should return 2 instead of 1
+        repeat_residual = prob_ratio - repeat_count # a number between 0-1
+        residual_acceptance = tf.less_equal(
+                            tf.random_uniform([], dtype=tf.float32, seed=SEED), repeat_residual
+        )
+
+        residual_acceptance = tf.cast(residual_acceptance, tf.int64)
+        repeat_count = tf.cast(repeat_count, dtype=tf.int64)
+
+        return repeat_count + residual_acceptance
+
+    return wrapper
+    
+
 # randomization for training sets
-def create_training_dataset(file_names, batch_size, bridge_separate, buffer_size, stretch_colorspace, augmentations=[], **kwargs):
+def create_training_dataset(file_names, batch_size, bridge_separate, buffer_size, 
+							stretch_colorspace, use_sampling, probs, class_target_prob, augmentations=[], **kwargs):
 	''' Create the training dataset from the TFRecords shard
 	'''
 	target_size = kwargs.get('target_size')
 	channels = kwargs.get('channels')
 	
 	files = tf.data.Dataset.list_files(file_names, shuffle=None, seed=SEED)
-	shards = files.shuffle(buffer_size=7, seed=SEED)
+	shards = files.shuffle(buffer_size=1000, seed=SEED)
     
 	dataset = shards.interleave(lambda x: tf.data.TFRecordDataset(x, compression_type='GZIP'), 
                                 cycle_length=len(file_names), num_parallel_calls=tf.data.experimental.AUTOTUNE)
 	dataset = dataset.shuffle(buffer_size=buffer_size, seed = SEED)
     #dataset = dataset.repeat(4)
 	dataset = dataset.map(parse_serialized_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+	if use_sampling:
+		z = oversampling_filter(probs, class_target_prob, bridge_separate)
+		dataset = dataset.flat_map(lambda x: tf.data.Dataset.from_tensors(x).repeat(z(x)))    
+		dataset = dataset.filter(undersampling_filter(probs, class_target_prob))
 	dataset = dataset.map(parse_image(target_size=target_size, 
 								   channels = channels, 
 								   bridge_separate=bridge_separate,
                                    stretch_colorspace=stretch_colorspace), 
                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)	
 	for f in augmentations:
-		dataset = dataset.map(lambda x,y: tf.cond(tf.random_uniform([], 0, 1) > 0.75, lambda: (f(x),y), lambda: (x, y)), num_parallel_calls=4)
+		dataset = dataset.map(lambda x,y: tf.cond(tf.random.uniform([], 0, 1) > 0.75, lambda: (f(x),y), lambda: (x, y)), num_parallel_calls=4)
 
 	dataset = dataset.batch(batch_size)
 	dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
@@ -163,6 +247,7 @@ def validate(file_names, batch_size, bridge_separate, stretch_colorspace, **kwar
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     return dataset
+
 
 
 def num_files(x):

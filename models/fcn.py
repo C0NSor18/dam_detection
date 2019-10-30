@@ -5,9 +5,18 @@ Created on Fri Sep 27 14:05:17 2019
 
 @author: stephan
 """
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
+#suppress information messages
+#0 = all messages are logged (default behavior)
+#1 = INFO messages are not printed
+#2 = INFO and WARNING messages are not printed
+#3 = INFO, WARNING, and ERROR messages are not printed
+#tf.compat.v1.logging.set_verbosity(2)
+
 from tensorflow.keras.layers import Conv2D, Flatten, MaxPool2D, Input
 from tensorflow.keras.models import Model
-
 
 
 # TODO: target size with variable channels
