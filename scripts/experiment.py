@@ -16,6 +16,7 @@ import datetime
 from models.convnet import build_convnet
 from models.fcn import build_fcn
 from models.densenet import build_densenet121
+from models.resnet import build_resnet50
 from models.dilated_fcn import build_dilated_fcn_61
 from datasets.load_data import load_data
 import tensorflow.keras.backend as K
@@ -25,20 +26,7 @@ import numpy as np
 
 from tfdeterminism import patch
 patch()
-# TODO: add target size as a variable parameters both in the generators as well as the models
-# TODO: PUT IN ITS OWN GENERATORS FOLDER
-# TODO: BATCH SIZE, VARIABLE TARGET SIZE
-# TODO: CREATE ACTUAL GENERATORS
-# TODO: VARIABLE TARGET SIZE
-# TODO: CONNECTION WITH GENERATORS
-# TODO: AUGMENTATION
-# TODO: COMPARE WITH ISMI
-# TODO: CLEAN UP CONNECTIONS TO GENERATORS WITH PARAMETERS ETC
-# TODO: ADD OPTIONS IN OMNIBOARD
-# TODO: CONFIG OPTION EXTEND TO BRIDGES (switch from 2 to 3 labels)
-# TODO: CONFIG OPTION RGB IMAGES OR GENERAL CHANNELS
-# TODO: ADD SET_SEED IN GENERATORS WHEREVER POSSIBLE
-# TODO: BALANCED SAMPLING
+
 
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.222)
 
@@ -48,7 +36,8 @@ model_dict = {
 	'convnet': build_convnet,
 	'fcn': build_fcn,
 	'dilated_fcn': build_dilated_fcn_61,
-	'densenet121': build_densenet121
+	'densenet121': build_densenet121,
+	'resnet50': build_resnet50
 }
 
 
@@ -163,7 +152,8 @@ def run_experiment(config, reproduce_result=None):
 		# Model checkpoints
 		now = datetime.datetime.now()
 		date_string = "_".join(map(str, (now.year, now.month, now.day, now.hour, now.minute, now.second)))
-		modelcheckpoint_name= "checkpoints/model-{}-{}.hdf5".format(run.get('model'), date_string)
+		modelcheckpoint_name= "checkpoints/model-{}-{}-{}-{}.hdf5".format(
+				run.get('model'), date_string, model_params.get('num_classes'), len(model_params.get('channels')))
 		# if reproduce_result:
 		# modelcheckpoint_name = "../checkpoints/model-{}.hdf5".format(reproduce_result)
 		modelcheckpoint = ModelCheckpoint(modelcheckpoint_name, 

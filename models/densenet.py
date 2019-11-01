@@ -17,14 +17,7 @@ from tensorflow.keras.layers import Conv2D, Flatten, Input
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications.densenet import DenseNet121
 
-
-# TODO: target size with variable channels
-# TODO: variable number of classes
-
-# TEMPORARY MODEL FOR TESTING PURPOSES ONLY
-
-
-def build_densenet121(train_model = True, **kwargs):
+def build_densenet121_old(train_model = True, **kwargs):
 	weights = kwargs.get('weights', 'imagenet')
 	#num_classes = kwargs.get('num_classes')
 	
@@ -43,3 +36,23 @@ def build_densenet121(train_model = True, **kwargs):
 	#model.summary()
 	model.summary()
 	return model
+
+def build_densenet121(train_model = True, **kwargs):
+    weights = kwargs.get('weights', 'imagenet')
+    #num_classes = kwargs.get('num_classes')
+    
+    inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
+    dense_filter = Conv2D(filters=3, kernel_size=(3,3), padding='same')(inputs)
+
+    densenet = DenseNet121(include_top=False, weights=weights)(dense_filter)
+    #x = densenet.output
+    x = Conv2D(filters=128,kernel_size=(4,4),activation='relu')(densenet) # 8
+    x = Conv2D(filters=64,kernel_size=(1,1),activation='relu')(x)
+    preds = Conv2D(filters=kwargs.get('num_classes'), kernel_size=(1,1),activation='softmax')(x) 
+    if train_model:
+        preds = Flatten()(preds)
+    model = Model(inputs=inputs, outputs=preds)
+
+    #model.summary()
+    model.summary()
+    return model

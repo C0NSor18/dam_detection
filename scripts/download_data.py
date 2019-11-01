@@ -13,7 +13,7 @@ files = {'grand': '103pWVUcMhaP0a0ZtwU8CcwKdphf7gYwa',
          'grand_test':'1y5jkKOgYNwO4t4FWBLdNxdFgynaxtEgD',
          'good':'1jYDmzRS3DbAWvyrrOUPOk6abt55YiRGg',
          'bridges': '1NIkriHjWeeiyEPcKt6o-9oTe8w-lq70A',
-         'other': '1XOFrrgGMpBSiRm8vQgiKy4NhWFwhWQ0N'}
+         'other': '1ltscmh_2yYGF6reBOi0bcIdRfUMhzbhb'}
 
 def download_file(file_id, dest_path, *args, **kwargs):
     if os.path.exists(dest_path):

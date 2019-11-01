@@ -283,6 +283,7 @@ class TFRecordGenerator:
 if __name__ == '__main__':
 
     data_files = ['grand', 'good.gz', 'grand_test.gz', 'other.gz', 'bridges.gz']
+    data_files = ['other.gz']
     data_path = os.path.join('..', 'datasets', 'raw')
     out_path = os.path.join('..', 'datasets', 'data')
     

@@ -8,8 +8,10 @@ Created on Fri Sep 27 14:02:45 2019
 #import tensorflow as tf
 
 from scripts.experiment import run_experiment
+import tensorflow as tf
 from tensorflow.keras.backend import clear_session
 from generators.augmentations import rotate, flip
+import os
 # The reproducibility problem is in the GPU!!
 #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 #os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -22,13 +24,17 @@ from generators.augmentations import rotate, flip
 # tuples are converted to lists for some reason after the config
 # is fetched from ex (and ex.add(config))
 
-
+config = tf.ConfigProto()
+config.gpu_options.allow_growth=True
+sess = tf.Session(config=config)
 # ======================
 # BASE PARAMETERS
 # ======================
+
+#os.nice(19)
 fit_params = {'model': None,
 			  'lr': 0.0001,
-			  'epochs': 5,
+			  'epochs': 15,
 			  'reduce_lr_on_plateau': True}
 
 data_params = {'use_sampling': True,
@@ -45,14 +51,13 @@ model_params = {'channels': ['B4', 'B3', 'B2', 'NDWI', 'AVE'],
 # ======================
 # Fully convolutional net
 # ======================
-
-fit_params['model'] = 'fcn'
-config = {'fit_params': fit_params,
-		  'data_params': data_params,
-		  'model_params': model_params}
-
-run_experiment(config)
-clear_session() 
+#fit_params['model'] = 'fcn'
+#config = {'fit_params': fit_params,
+#		  'data_params': data_params,
+#		  'model_params': model_params}
+#
+#run_experiment(config)
+#clear_session() 
 
 # ======================
 # Dilated FCN
@@ -77,6 +82,19 @@ clear_session()
 #
 #run_experiment(config)
 #clear_session() 
+
+
+# ======================
+# ResNet50
+# ======================
+fit_params['model'] = 'resnet50'
+config = {'fit_params': fit_params,
+		  'data_params': data_params,
+		  'model_params': model_params}
+
+run_experiment(config)
+clear_session() 
+
 
 # ======================
 # Convnet (dense layers)
