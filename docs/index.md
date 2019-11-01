@@ -19,6 +19,7 @@ After many hours of figuring out how to export large images in GEE using the ```
 ![](images/original.png)
 ![](images/heatmap.png)
 
+Although I was able to get a fairly high test score on single classification labels, the heatmaps seem to accent on the contours of objects, rather then the dam itself. This means that there definitely is more work being done, which is not altogether bad, considering we can see this as a starting point.  
 
 * 11 October 2019*
 ## Getting reproducibility in Tensorflow GPU
