@@ -3,6 +3,7 @@
 Welcome to my blog on dam detection using neural networks. This projects primarily aims to detect dams using satellite data!
 
 ## Table of Contents
+[Some segmentation maps](#segmentation-maps)
 [Getting reproducibility in Tensorflow GPU](#getting-reproducibility-in-tensorflow-gpu)   
 [Logging experiments with Sacred and Omniboard](#logging-experiments-with-sacred-and-omniboard)   
 [Shuffle, shuffle, shuffle](#shuffle-shuffle-shuffle)  
@@ -10,6 +11,15 @@ Welcome to my blog on dam detection using neural networks. This projects primari
 [Working with TFRecords](#working-with-tfrecords)   
 [Exploring Earth Engine](#exploring-earth-engine)   
 1. [An update](#an-update-10082019)
+
+*1 November 2019
+## Segmentation maps
+After many hours of figuring out how to export large images in GEE using the ```export.Image.ToDrive``` (featurecollections have a limit on the size), I was finally able to create the first heatmaps of the models that I trained. In essence, a large image is cut into several patches, and sometimes even be distributed among multiple TFRecords. The information on how to put them all back together is saved in a mixer.json file. After doing that, the resulting heatmaps from a dilated fcn looks like this:
+
+![](images/original.png)
+![](images/heatmap.png)
+
+Although I was able to get a fairly high test score on single classification labels, the heatmaps seem to accent on the contours of objects, rather then the dam itself. This means that there definitely is more work being done, which is not altogether bad, considering we can see this as a starting point.  
 
 * 11 October 2019*
 ## Getting reproducibility in Tensorflow GPU
