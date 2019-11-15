@@ -38,5 +38,5 @@ def build_dilated_fcn_61(train_model = True, **kwargs):
         x_out = Flatten()(x_out)
     model = Model(inputs = x_in, outputs=x_out)
 
-    model.summary()
+    #model.summary()
     return model

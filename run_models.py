@@ -34,7 +34,7 @@ sess = tf.Session(config=config)
 #os.nice(19)
 fit_params = {'model': None,
 			  'lr': 0.0001,
-			  'epochs': 15,
+			  'epochs': 10,
 			  'reduce_lr_on_plateau': True}
 
 data_params = {'use_sampling': True,
@@ -42,11 +42,11 @@ data_params = {'use_sampling': True,
 			   'buffer_size':3000,
 			   'augmentations': [],
 			   'stretch_colorpsace': True,
-			   'bridge_separate': True}
+			   'bridge_separate': False}
 
 model_params = {'channels': ['B4', 'B3', 'B2', 'NDWI', 'AVE'],
 				'target_size': [128, 128],
-				'num_classes': 3}
+				'num_classes': 2}
 
 # ======================
 # Fully convolutional net
@@ -62,38 +62,68 @@ model_params = {'channels': ['B4', 'B3', 'B2', 'NDWI', 'AVE'],
 # ======================
 # Dilated FCN
 # ======================
-#fit_params['model'] = 'convnet'
-## Requires exactly 61, 61 patches
-#model_params['target_size'] = [61,61]
-#config = {'fit_params': fit_params,
-#		  'data_params': data_params,
-#		  'model_params': model_params}
-#
-#run_experiment(config)
-#clear_session() 
-
-# ======================
-# DenseNet
-# ======================
-#fit_params['model'] = 'densenet121'
-#config = {'fit_params': fit_params,
-#		  'data_params': data_params,
-#		  'model_params': model_params}
-#
-#run_experiment(config)
-#clear_session() 
-
-
-# ======================
-# ResNet50
-# ======================
-fit_params['model'] = 'resnet50'
+fit_params['model'] = 'dilated_fcn'
+# Requires exactly 61, 61 patches
+model_params['target_size'] = [61,61]
 config = {'fit_params': fit_params,
 		  'data_params': data_params,
 		  'model_params': model_params}
 
 run_experiment(config)
 clear_session() 
+
+# ======================
+# DenseNet
+# ======================
+
+#fit_params['model'] = 'densenet121_imagenet'
+#
+#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
+#	model_params['channels'] = channels
+#
+#	config = {'fit_params': fit_params,
+#			  'data_params': data_params,
+#			  'model_params': model_params}
+#
+#	run_experiment(config)
+#	clear_session() 
+#
+#
+#fit_params['model'] = 'densenet121'
+#
+#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
+#	model_params['channels'] = channels
+#
+#	config = {'fit_params': fit_params,
+#			  'data_params': data_params,
+#			  'model_params': model_params}
+#
+#	run_experiment(config)
+#	clear_session() 
+
+# ======================
+# ResNet50
+# ======================
+#fit_params['model'] = 'resnet50_imagenet'
+#
+#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
+#	model_params['channels'] = channels
+#	config = {'fit_params': fit_params,
+#			  'data_params': data_params,
+#			  'model_params': model_params}
+#	
+#	run_experiment(config)
+#	clear_session() 
+#
+#fit_params['model'] = 'resnet50'
+#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
+#	model_params['channels'] = channels
+#	config = {'fit_params': fit_params,
+#			  'data_params': data_params,
+#			  'model_params': model_params}
+#	
+#	run_experiment(config)
+#	clear_session() 
 
 
 # ======================

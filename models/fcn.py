@@ -50,5 +50,5 @@ def build_fcn(train_model=True, **kwargs):
 
     model = Model(inputs = inputs, outputs=predictions)
 
-    model.summary()
+    #model.summary()
     return model

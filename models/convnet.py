@@ -32,5 +32,5 @@ def build_convnet(**kwargs):
 	predictions = Dense(kwargs.get("num_classes"), activation='softmax')(x)
 
 	model = Model(inputs = inputs, outputs=predictions)
-	model.summary()
+	#model.summary()
 	return model

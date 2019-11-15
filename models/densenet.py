@@ -17,27 +17,45 @@ from tensorflow.keras.layers import Conv2D, Flatten, Input
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications.densenet import DenseNet121
 
-def build_densenet121_old(train_model = True, **kwargs):
-	weights = kwargs.get('weights', 'imagenet')
-	#num_classes = kwargs.get('num_classes')
-	
-	inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
-	densenet = DenseNet121(include_top=False, input_tensor=inputs , weights=weights)
-	x = densenet.output
-	x = Conv2D(filters=128,kernel_size=(4,4),activation='relu')(x) # 8
-	x = Conv2D(filters=64,kernel_size=(1,1),activation='relu')(x)
-	preds = Conv2D(filters=2, kernel_size=(1,1),activation='softmax')(x) 
-	if train_model:
-		preds = Flatten()(preds)
-		
-	model = Model(inputs=densenet.input, outputs=preds)
-	
-
-	#model.summary()
-	model.summary()
-	return model
+#def build_densenet121_old(train_model = True, **kwargs):
+#	weights = kwargs.get('weights', 'imagenet')
+#	#num_classes = kwargs.get('num_classes')
+#	
+#	inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
+#	densenet = DenseNet121(include_top=False, input_tensor=inputs , weights=weights)
+#	x = densenet.output
+#	x = Conv2D(filters=128,kernel_size=(4,4),activation='relu')(x) # 8
+#	x = Conv2D(filters=64,kernel_size=(1,1),activation='relu')(x)
+#	preds = Conv2D(filters=2, kernel_size=(1,1),activation='softmax')(x) 
+#	if train_model:
+#		preds = Flatten()(preds)
+#		
+#	model = Model(inputs=densenet.input, outputs=preds)
+#	
+#
+#	#model.summary()
+#	model.summary()
+#	return model
 
 def build_densenet121(train_model = True, **kwargs):
+	inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
+	resnet = DenseNet121(include_top=False, weights=None, input_tensor=inputs)
+	
+	x = resnet.output
+	x = Conv2D(filters = 512, kernel_size=(4,4), activation='relu')(x)
+	x = Conv2D(filters = 128, kernel_size=(1,1), activation='relu')(x)
+	preds = Conv2D(filters = kwargs.get('num_classes'), kernel_size=(1,1), activation='softmax')(x)
+	if train_model:
+		preds = Flatten()(preds)
+
+	#preds = Dense(2, activation='softmax', name='fc1000')(x)
+	
+	model = Model(inputs=resnet.input, outputs=preds)
+	#model.summary()
+	
+	return model
+
+def build_densenet121_imagenet(train_model = True, **kwargs):
     weights = kwargs.get('weights', 'imagenet')
     #num_classes = kwargs.get('num_classes')
     
@@ -54,5 +72,4 @@ def build_densenet121(train_model = True, **kwargs):
     model = Model(inputs=inputs, outputs=preds)
 
     #model.summary()
-    model.summary()
     return model

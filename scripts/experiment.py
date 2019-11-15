@@ -15,8 +15,8 @@ from scripts.constants import SEED
 import datetime
 from models.convnet import build_convnet
 from models.fcn import build_fcn
-from models.densenet import build_densenet121
-from models.resnet import build_resnet50
+from models.densenet import build_densenet121, build_densenet121_imagenet
+from models.resnet import build_resnet50, build_resnet50_imagenet
 from models.dilated_fcn import build_dilated_fcn_61
 from datasets.load_data import load_data
 import tensorflow.keras.backend as K
@@ -37,7 +37,9 @@ model_dict = {
 	'fcn': build_fcn,
 	'dilated_fcn': build_dilated_fcn_61,
 	'densenet121': build_densenet121,
-	'resnet50': build_resnet50
+	'densenet121_imagenet': build_densenet121_imagenet,
+	'resnet50': build_resnet50,
+	'resnet50_imagenet': build_resnet50_imagenet
 }
 
 
@@ -135,7 +137,7 @@ def run_experiment(config, reproduce_result=None):
 
 		# invoke the user function
 		model = model_func(**model_params)
-		
+		model.summary()
 		# compile the model with catcrossentropy: one hot encoded labels!!
 		model.compile(optimizer= tf.keras.optimizers.Adam(run.get('lr')),
 						loss= 'categorical_crossentropy',
@@ -201,7 +203,7 @@ def run_experiment(config, reproduce_result=None):
 		
 		_run.log_scalar("test_loss", float(results[0]))
 		_run.log_scalar("test_acc", float(results[1]))
-		
+		_run.log_
 	runner = ex.run()
 	return runner     
 

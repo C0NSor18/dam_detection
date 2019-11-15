@@ -31,10 +31,29 @@ def build_resnet50(train_model=True, **kwargs):
 	if train_model:
 		preds = Flatten()(preds)
 
-	
 	#preds = Dense(2, activation='softmax', name='fc1000')(x)
 	
 	model = Model(inputs=resnet.input, outputs=preds)
-	model.summary()
+	#model.summary()
 	
 	return model
+
+def build_resnet50_imagenet(train_model = True, **kwargs):
+    weights = kwargs.get('weights', 'imagenet')
+    #num_classes = kwargs.get('num_classes')
+    
+    inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
+    dense_filter = Conv2D(filters=3, kernel_size=(3,3), padding='same')(inputs)
+
+    densenet = ResNet50(include_top=False, weights=weights)(dense_filter)
+    #x = densenet.output
+    x = Conv2D(filters=128,kernel_size=(4,4),activation='relu')(densenet) # 8
+    x = Conv2D(filters=64,kernel_size=(1,1),activation='relu')(x)
+    preds = Conv2D(filters=kwargs.get('num_classes'), kernel_size=(1,1),activation='softmax')(x) 
+    if train_model:
+        preds = Flatten()(preds)
+    model = Model(inputs=inputs, outputs=preds)
+
+    #model.summary()
+    #model.summary()
+    return model
