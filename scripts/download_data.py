@@ -9,11 +9,13 @@ import errno
 
 from google_drive_downloader import GoogleDriveDownloader as gdd
 
-files = {'grand': '103pWVUcMhaP0a0ZtwU8CcwKdphf7gYwa', 
-         'grand_test':'1y5jkKOgYNwO4t4FWBLdNxdFgynaxtEgD',
-         'good':'1jYDmzRS3DbAWvyrrOUPOk6abt55YiRGg',
-         'bridges': '1NIkriHjWeeiyEPcKt6o-9oTe8w-lq70A',
-         'other': '1ltscmh_2yYGF6reBOi0bcIdRfUMhzbhb'}
+# links updated on 29/11/2019
+files = {#'grand': '103pWVUcMhaP0a0ZtwU8CcwKdphf7gYwa', 
+         #'grand_test':'1y5jkKOgYNwO4t4FWBLdNxdFgynaxtEgD',
+         #'good':'1jYDmzRS3DbAWvyrrOUPOk6abt55YiRGg',
+         #'bridges': '1NIkriHjWeeiyEPcKt6o-9oTe8w-lq70A',
+         #'other': '1ltscmh_2yYGF6reBOi0bcIdRfUMhzbhb',
+         'bbox_data': '1mzHNGxniw-NDto8zlBvArctbc7OK8S7K'}
 
 def download_file(file_id, dest_path, *args, **kwargs):
     if os.path.exists(dest_path):
