@@ -104,7 +104,7 @@ def wrapped_feature(feature):
             'B3': tf.train.Feature(float_list=tf.train.FloatList(value=feature['B3'].numpy().flatten())),
             'B4': tf.train.Feature(float_list=tf.train.FloatList(value=feature['B4'].numpy().flatten())),
             'AVE': tf.train.Feature(float_list=tf.train.FloatList(value=feature['AVE'].numpy().flatten())),
-	    'NDWI': tf.train.Feature(float_list=tf.train.FloatList(value=feature['NDWI'].numpy().flatten())),
+	        'NDWI': tf.train.Feature(float_list=tf.train.FloatList(value=feature['NDWI'].numpy().flatten())),
             'label': tf.train.Feature(float_list=tf.train.FloatList(value=feature['label'].numpy())),
             'index': tf.train.Feature(int64_list=tf.train.Int64List(value=[i]))
         }))
