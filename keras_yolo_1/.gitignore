@@ -6,7 +6,7 @@ venv
 .vscode
 .idea
 logs
-plugins
+/plugins
 
 # Any ML weights
 *.h5
