@@ -1,3 +1,6 @@
 [submodule "NBI-convert"]
 	path = NBI-convert
 	url = https://github.com/mvexel/NBI-convert.git
+[submodule "keras_yolo2_3"]
+	path = keras_yolo2_3
+	url = https://github.com/rodrigo2019/keras_yolo2
