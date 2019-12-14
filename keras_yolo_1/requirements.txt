@@ -1,7 +1,0 @@
-tensorflow
-keras
-imgaug
-opencv-python
-h5py
-tqdm
-numpy

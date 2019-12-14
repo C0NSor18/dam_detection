@@ -1,7 +1,0 @@
-# Any ML weights
-*.h5
-*.hdf5
-*.pyc
-*.weights
-
-
