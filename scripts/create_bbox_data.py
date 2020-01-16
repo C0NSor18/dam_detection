@@ -13,9 +13,9 @@ tf.compat.v1.enable_eager_execution()
 from constants import SEED, NUM_FILES_PER_RECORD
 import os.path
 import random
+from scipy import ndimage
+
 random.seed(SEED)
-
-
 
 class DataExtractor(object):
     
@@ -77,14 +77,16 @@ class DataExtractor(object):
     def compute_bbox(self, label):
         condition = tf.equal(label,tf.constant(1))
         locs = tf.where(condition)
-        # xmin, ymax, xmax, ymin
+        # ymin xmin xmax ymax
         return locs[0][0], locs[0][1], locs[-1][0], locs[-1][1] 
     
     def parse_features(self, features):
         # Get the image channels, and NDWI/AVE channels separately
         # we cannot import them all at once since they need separate preprocessing steps
-
-        xmin, ymax, xmax, ymin = self.compute_bbox(tf.cast(features['PIXEL_LABEL'], tf.int32))
+        
+        
+        # tf where starts from top left, and goes row by row
+        ymin, xmin, ymax, xmax = self.compute_bbox(tf.reverse(tf.cast(features['PIXEL_LABEL'], tf.int32), [0]))
         
         features['xmin'] = xmin
         features['ymin'] = ymin
@@ -176,11 +178,10 @@ class DataExtractor(object):
         dataset = dataset.map(self.parse_serialized_example, tf.data.experimental.AUTOTUNE)
         
         # Function that calculates bounding boxes, and simply passes the rest of the input through
-        dataset = dataset.map(self.parse_features, tf.data.experimental.AUTOTUNE)
-        
+        dataset = dataset.map(self.parse_features, tf.data.experimental.AUTOTUNE)   
+
         # SILENTLY ignores any errors that might occur
         dataset = dataset.apply(tf.data.experimental.ignore_errors())
-        
         
         # =========================
         # # Write TFRecord
@@ -197,6 +198,14 @@ class DataExtractor(object):
         
         print("[!] Started converting TFRecords..., giving a progress report every {} samples".format(num_samples))
         for counter, x in enumerate(dataset):
+        
+            # remove separate boxes: there should only be one box per image in our case
+            labeled, nr_objects = ndimage.label(x['PIXEL_LABEL'].numpy()) 
+            if nr_objects > 1:
+                print("found too many objects in iteration: {}".format(counter))
+                print("continuing with next iteration")
+                continue
+            
             # Open and write a new tfrecord file
             if record_incr == num_samples:
                 writers.append(tf.io.TFRecordWriter("{}-{}.gz".format(tfrecord_file_name, str(file_incr).zfill(3)), options))
@@ -213,7 +222,7 @@ class DataExtractor(object):
             
             # status report
             if (counter % num_samples == 0 and counter != 0):
-                print("Done writing {}-{}.gz".format(tfrecord_file_name, str(file_incr-1).zfill(am'3)))
+                print("Done writing {}-{}.gz".format(tfrecord_file_name, str(file_incr-1).zfill(3)))
 
         # Close all files
         for w in writers:
@@ -227,11 +236,4 @@ if __name__ == '__main__':
     
     data_extractor = DataExtractor(257, 257, 'dam')
     data_extractor.create_sharded_records(in_path, out_path, 'dam-data')
-    
-    
-    
-    
-    
-        
-    
     

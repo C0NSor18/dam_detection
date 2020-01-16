@@ -1,7 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 19 13:47:44 2019
+
+@author: stephan
+"""
+
 # -*- coding: utf-8 -*-
 """
 Created on Wed Aug 28 14:36:58 2019
-
 @author: Stephan
 """
 
@@ -195,7 +202,7 @@ class TFRecordGenerator:
             w.close()
         print("%d records writen" % counter)
     
-    @staticmethod 
+    @staticmethod
     def generate_records_per_batch(dataset, num_samples, tfrecord_file_name):
         ''' Creates x TFRecords, where each records aims to hold num_samples 
         
@@ -317,4 +324,3 @@ if __name__ == '__main__':
             print("Please enter yes or no.")
 
 print("terminating program")
-

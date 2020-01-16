@@ -47,6 +47,6 @@ class SuperTinyYoloFeature(BaseFeatureExtractor):
             x = LeakyReLU(alpha=0.1)(x)
 
         self.feature_extractor = Model(input_image, x)  
-
+		
     def normalize(self, image):
         return image / 255.

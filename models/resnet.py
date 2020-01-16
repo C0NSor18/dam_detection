@@ -15,45 +15,32 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 #3 = INFO, WARNING, and ERROR messages are not printed
 #tf.compat.v1.logging.set_verbosity(2)
 
-from tensorflow.keras.layers import Conv2D, Flatten, Input
+from tensorflow.keras.layers import Conv2D, Flatten, Input, GlobalAveragePooling2D, Dense
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications.resnet50 import ResNet50
 
-
-def build_resnet50(train_model=True, **kwargs): 
-	inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
-	resnet = ResNet50(include_top=False, weights=None, input_tensor=inputs)
-	
-	x = resnet.output
-	x = Conv2D(filters = 512, kernel_size=(4,4), activation='relu')(x)
-	x = Conv2D(filters = 128, kernel_size=(1,1), activation='relu')(x)
-	preds = Conv2D(filters = kwargs.get('num_classes'), kernel_size=(1,1), activation='softmax')(x)
-	if train_model:
-		preds = Flatten()(preds)
-
-	#preds = Dense(2, activation='softmax', name='fc1000')(x)
-	
-	model = Model(inputs=resnet.input, outputs=preds)
-	#model.summary()
-	
-	return model
-
-def build_resnet50_imagenet(train_model = True, **kwargs):
-    weights = kwargs.get('weights', 'imagenet')
-    #num_classes = kwargs.get('num_classes')
+def build_resnet50(train_model=True, **kwargs):
     
-    inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
-    dense_filter = Conv2D(filters=3, kernel_size=(3,3), padding='same')(inputs)
+    weights = kwargs.get('weights')
+    
+    inputs = Input(shape=(None, None, len(kwargs.get('channels')) ), name='inputlayer_0')
+    
+    if weights is None:
+        print("instantiated with random weights")
+        resnet50 = ResNet50(input_tensor=inputs, weights= weights, include_top=False)
+        resnet50 = resnet50.output
+    else:
+        print("instantiated model with weights: {}".format(weights))
+        x = Conv2D(3, (1,1))(inputs)
+        resnet50 = ResNet50(weights= weights, include_top=False)(x)
+        
+    if kwargs.get('top') == False:
+        # top is not needed for object detectors
+        model = Model(inputs=inputs, outputs=resnet50)
+    else:
+        output = GlobalAveragePooling2D()(resnet50)
+        output = Dense(kwargs.get('num_classes'), activation='softmax')(output)
+        model = Model(inputs=inputs, outputs=output)
 
-    densenet = ResNet50(include_top=False, weights=weights)(dense_filter)
-    #x = densenet.output
-    x = Conv2D(filters=128,kernel_size=(4,4),activation='relu')(densenet) # 8
-    x = Conv2D(filters=64,kernel_size=(1,1),activation='relu')(x)
-    preds = Conv2D(filters=kwargs.get('num_classes'), kernel_size=(1,1),activation='softmax')(x) 
-    if train_model:
-        preds = Flatten()(preds)
-    model = Model(inputs=inputs, outputs=preds)
-
-    #model.summary()
-    #model.summary()
+    model.summary()
     return model

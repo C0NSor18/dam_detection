@@ -10,131 +10,64 @@ Created on Fri Sep 27 14:02:45 2019
 from scripts.experiment import run_experiment
 import tensorflow as tf
 from tensorflow.keras.backend import clear_session
-from generators.augmentations import rotate, flip
 import os
+import argparse
+from pprint import pprint
+
 # The reproducibility problem is in the GPU!!
 #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"] = ""
+#os.environ["CUDA_VISIBLE_DEVICES"]="1"
 #tf.random.set_random_seed(3)
 #tf.keras.backend.clear_session()
 #tf.reset_default_graph()
 
+argparser = argparse.ArgumentParser(
+    description='run and train experiments')
 
-# the config gets converted to dict of values/lists
-# tuples are converted to lists for some reason after the config
-# is fetched from ex (and ex.add(config))
+argparser.add_argument('-m',  '--model', type=str, help='which model to use')
+argparser.add_argument('--batch_size', default=32, type=int, help='mini batch size to use')
+argparser.add_argument('--augmentations', default=True, type=bool, help='use augmentations (True, False)')
+argparser.add_argument('--lr', default=0.0001, type=float, help='learning rate')
+argparser.add_argument('--sa', default=True, type=bool, help='use under/over sampling? (True, False)')
+argparser.add_argument('--epoch', default=10, type=int, help='number of epochs (int)')
+    
+    
 
-config = tf.ConfigProto()
-config.gpu_options.allow_growth=True
-sess = tf.Session(config=config)
-# ======================
-# BASE PARAMETERS
-# ======================
+def _main_(args):
+    # ======================
+    # BASE PARAMETERS
+    # ======================
+    print(args)
+    #os.nice(19)
+    fit_params = {'model': args.model,
+                  'lr': args.lr,
+                  'epochs': args.epoch,
+                  'reduce_lr_on_plateau': True}
 
-#os.nice(19)
-fit_params = {'model': None,
-			  'lr': 0.0001,
-			  'epochs': 10,
-			  'reduce_lr_on_plateau': True}
+    data_params = {'use_sampling': args.sa,
+                   'batch_size' :args.batch_size,
+                   'buffer_size':3000,
+                   'augmentations': args.augmentations}
 
-data_params = {'use_sampling': True,
-			   'batch_size' :32,
-			   'buffer_size':3000,
-			   'augmentations': [],
-			   'stretch_colorpsace': True,
-			   'bridge_separate': False}
-
-model_params = {'channels': ['B4', 'B3', 'B2', 'NDWI', 'AVE'],
-				'target_size': [128, 128],
-				'num_classes': 2}
-
-# ======================
-# Fully convolutional net
-# ======================
-#fit_params['model'] = 'fcn'
-#config = {'fit_params': fit_params,
-#		  'data_params': data_params,
-#		  'model_params': model_params}
-#
-#run_experiment(config)
-#clear_session() 
-
-# ======================
-# Dilated FCN
-# ======================
-fit_params['model'] = 'dilated_fcn'
-# Requires exactly 61, 61 patches
-model_params['target_size'] = [61,61]
-config = {'fit_params': fit_params,
-		  'data_params': data_params,
-		  'model_params': model_params}
-
-run_experiment(config)
-clear_session() 
-
-# ======================
-# DenseNet
-# ======================
-
-#fit_params['model'] = 'densenet121_imagenet'
-#
-#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
-#	model_params['channels'] = channels
-#
-#	config = {'fit_params': fit_params,
-#			  'data_params': data_params,
-#			  'model_params': model_params}
-#
-#	run_experiment(config)
-#	clear_session() 
-#
-#
-#fit_params['model'] = 'densenet121'
-#
-#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
-#	model_params['channels'] = channels
-#
-#	config = {'fit_params': fit_params,
-#			  'data_params': data_params,
-#			  'model_params': model_params}
-#
-#	run_experiment(config)
-#	clear_session() 
-
-# ======================
-# ResNet50
-# ======================
-#fit_params['model'] = 'resnet50_imagenet'
-#
-#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
-#	model_params['channels'] = channels
-#	config = {'fit_params': fit_params,
-#			  'data_params': data_params,
-#			  'model_params': model_params}
-#	
-#	run_experiment(config)
-#	clear_session() 
-#
-#fit_params['model'] = 'resnet50'
-#for channels in [['B4', 'B3', 'B2'], ['B4', 'B3', 'B2', 'NDWI'], ['B4', 'B3', 'B2', 'NDWI', 'AVE']]:
-#	model_params['channels'] = channels
-#	config = {'fit_params': fit_params,
-#			  'data_params': data_params,
-#			  'model_params': model_params}
-#	
-#	run_experiment(config)
-#	clear_session() 
+    model_params = {'channels': ['B4', 'B3', 'B2', 'AVE'],
+                    'target_size': [257, 257],
+                    'num_classes': 2,
+                    'weights': 'imagenet'}
 
 
-# ======================
-# Convnet (dense layers)
-# ======================
-#fit_params['model'] = 'convnet'
-#config = {'fit_params': fit_params,
-#		  'data_params': data_params,
-#		  'model_params': model_params}
-#
-#run_experiment(config)
-#clear_session() 
+    # ======================
+    # Darknet 19 detection
+    # ======================
 
+    config = {'fit_params': fit_params,
+              'data_params': data_params,
+              'model_params': model_params}
+
+    
+
+    run_experiment(config)
+
+if __name__ == '__main__':
+    _args = argparser.parse_args()
+    _main_(_args)
 

@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 import tensorflow as tf
-from keras_yolov2.preprocessing import parse_annotation_xml, parse_annotation_csv
+from keras_yolov2.preprocessing import parse_annotation_xml, parse_annotation_csv, parse_annotation_tfr
 from keras_yolov2.utils import get_session, create_backup
 from keras_yolov2.frontend import YOLO
 import numpy as np
@@ -62,26 +62,37 @@ def _main_(args):
             split = False
         else:
             split = True
+            
+    elif config['parser_annotation_type'] == 'tfr':
+        train_imgs = config['train']['train_tfr_folder']
+        #print("train imgs are:", train_imgs)
+        train_imgs = parse_annotation_tfr(train_imgs)
+        #print("train imgs are:", train_imgs)
+        valid_imgs = config['valid']['valid_tfr_folder']
+        valid_imgs = parse_annotation_tfr(valid_imgs)
+
+        split = False
+        
     else:
-        raise ValueError("'parser_annotations_type' must be 'xml' or 'csv' not {}.".format(config['parser_annotations_type']))
+        raise ValueError("'parser_annotations_type' must be 'xml' or 'csv' or 'tfr' not {}.".format(config['parser_annotations_type']))
 
     if split:
-        train_valid_split = int(0.8*len(train_imgs))
+        train_valid_split = int(0.8 * len(train_imgs))
         np.random.shuffle(train_imgs)
 
         valid_imgs = train_imgs[train_valid_split:]
         train_imgs = train_imgs[:train_valid_split]
 
     if len(config['model']['labels']) > 0:
-        overlap_labels = set(config['model']['labels']).intersection(set(train_labels.keys()))
+        #overlap_labels = set(config['model']['labels']).intersection(set(train_labels.keys()))
 
-        print('Seen labels:\t', train_labels)
+        #print('Seen labels:\t', train_labels)
         print('Given labels:\t', config['model']['labels'])
-        print('Overlap labels:\t', overlap_labels)
+        #print('Overlap labels:\t', overlap_labels)
 
-        if len(overlap_labels) < len(config['model']['labels']):
-            print('Some labels have no annotations! Please revise the list of labels in the config.json file!')
-            return
+        #if len(overlap_labels) < len(config['model']['labels']):
+        #    print('Some labels have no annotations! Please revise the list of labels in the config.json file!')
+        #    return
     else:
         print('No labels are provided. Train on all seen labels.')
         config['model']['labels'] = train_labels.keys()
@@ -93,7 +104,7 @@ def _main_(args):
     ###############################
 
     yolo = YOLO(backend=config['model']['backend'],
-                input_size=(config['model']['input_size_h'], config['model']['input_size_w']),
+                input_size=(config['model']['input_size_h'], config['model']['input_size_w'], config['model']['input_size_c']),
                 labels=config['model']['labels'],
                 max_box_per_image=config['model']['max_box_per_image'],
                 anchors=config['model']['anchors'],
@@ -111,8 +122,8 @@ def _main_(args):
     #   Start the training process 
     ###############################
 
-    yolo.train(train_imgs=train_imgs,
-               valid_imgs=valid_imgs,
+    yolo.train(train_imgs=train_imgs[0:25],
+               valid_imgs=valid_imgs[0:2],
                train_times=config['train']['train_times'],
                valid_times=config['valid']['valid_times'],
                nb_epochs=config['train']['nb_epochs'],

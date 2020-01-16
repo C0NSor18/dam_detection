@@ -314,6 +314,42 @@ def get_session():
     return tf.Session(config=config)
 
 
+def parse_serialized_example(example_proto):
+    ''' Parser function
+    Useful for functional extraction, i.e. .map functions
+    
+    Args:
+        example_proto: a serialized example
+        
+    Returns:
+        A dictionary with features, cast to float32
+        This returns a dictionary of keys and tensors to which I apply the transformations.
+    '''
+    # feature columns of interest
+    featuresDict = {
+        'image/height': tf.io.FixedLenFeature(1, dtype=tf.int64),
+        'image/width': tf.io.FixedLenFeature(1, dtype=tf.int64),
+        'image/filename': tf.io.FixedLenFeature(1, dtype=tf.string),
+        'image/source_id': tf.io.FixedLenFeature(1, dtype=tf.string),
+        'image/format': tf.io.FixedLenFeature(1, dtype=tf.string),
+        'image/channel/B2': tf.io.FixedLenFeature([257, 257], dtype=tf.float32),  # B
+        'image/channel/B3': tf.io.FixedLenFeature([257, 257], dtype=tf.float32),  # G
+        'image/channel/B4': tf.io.FixedLenFeature([257, 257], dtype=tf.float32),  # R
+        'image/channel/AVE': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # Elevation
+        'image/channel/NDWI': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
+        'image/channel/MNDWI': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
+        'image/channel/AWEINSH': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
+        'image/channel/AWEISH': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
+        'image/object/bbox/xmin': tf.io.FixedLenFeature(1, dtype=tf.int64), 
+        'image/object/bbox/xmax': tf.io.FixedLenFeature(1, dtype=tf.int64),
+        'image/object/bbox/ymin': tf.io.FixedLenFeature(1, dtype=tf.int64),
+        'image/object/bbox/ymax': tf.io.FixedLenFeature(1, dtype=tf.int64),
+        'image/object/class/text': tf.io.FixedLenFeature(1, dtype=tf.string),
+        'image/object/class/label': tf.io.FixedLenFeature(1, dtype=tf.int64)
+    }
+    
+    return tf.io.parse_single_example(example_proto, featuresDict)
+
 def create_backup(config):
     # TODO: the backup creation should be improved, because if the keras_yolo is used as module and the train.py and
     # config.json is in another folder, it wont be copied to the backup

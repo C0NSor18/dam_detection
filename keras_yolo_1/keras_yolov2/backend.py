@@ -390,3 +390,6 @@ class ResNet50Feature(BaseFeatureExtractor):
         image[..., 2] -= 123.68
 
         return image
+
+
+

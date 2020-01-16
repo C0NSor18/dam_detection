@@ -1,3 +1,5 @@
+import tensorflow as tf
+tf.enable_eager_execution()
 from .yolo_loss import YoloLoss
 from .map_evaluation import MapEvaluation
 from .utils import decode_netout, import_feature_extractor, import_dynamically
@@ -5,17 +7,32 @@ from .preprocessing import BatchGenerator
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Reshape, Conv2D, Input
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, ReduceLROnPlateau, LearningRateScheduler
+import tensorflow.contrib.summary as tfsum
 import numpy as np
 import sys
 import cv2
 import os
+import datetime
 
+
+def schedule(epoch, lr):
+    if epoch == 0:
+        learning_rate = 0.00001
+    
+    if epoch < 11:
+        learning_rate = 0.0005 * (epoch / 10) ** 2
+    
+    if epoch >= 11:
+        decay_rate = 0.0005
+        learning_rate = lr /(1+decay_rate*epoch)
+
+    return learning_rate
 
 # changes include writing to TFRecord format
 class YOLO(object):
     def __init__(self, backend, input_size, labels, max_box_per_image, anchors, gray_mode=False):
-
+        self._backend = backend
         self._input_size = input_size
         self._gray_mode = gray_mode
         self.labels = list(labels)
@@ -30,11 +47,12 @@ class YOLO(object):
         ##########################
 
         # make the feature extractor layers
+        # Possibly delete?
         if self._gray_mode:
             self._input_size = (self._input_size[0], self._input_size[1], 1)
             input_image = Input(shape=self._input_size)
         else:
-            self._input_size = (self._input_size[0], self._input_size[1], 3)
+            self._input_size = (self._input_size[0], self._input_size[1], self._input_size[2])
             input_image = Input(shape=self._input_size)
 
         self._feature_extractor = import_feature_extractor(backend, self._input_size)
@@ -95,7 +113,7 @@ class YOLO(object):
               max_queue_size=8,
               early_stop=True,
               custom_callback=[],
-              tb_logdir="./",
+              tb_logdir="./logs/fit",
               train_generator_callback=None,
               iou_threshold=0.5,
               score_threshold=0.5):
@@ -134,15 +152,18 @@ class YOLO(object):
             custom_generator_callback = import_dynamically(custom_callback_name)
         else:
             custom_generator_callback = None
-
+        
+    
         train_generator = BatchGenerator(train_imgs,
-                                         generator_config,
-                                         norm=self._feature_extractor.normalize,
-                                         callback=custom_generator_callback)
+                                        generator_config,
+                                        norm=self._feature_extractor.normalize,
+                                        callback=custom_generator_callback)
+
         valid_generator = BatchGenerator(valid_imgs,
-                                         generator_config,
-                                         norm=self._feature_extractor.normalize,
-                                         jitter=False)
+                                        generator_config,
+                                        norm=self._feature_extractor.normalize,
+                                        callback=custom_generator_callback)
+        
 
         # TODO: warmup is not working with new loss function formula
         self._warmup_batches = warmup_epochs * (train_times * len(train_generator) + valid_times * len(valid_generator))
@@ -155,11 +176,16 @@ class YOLO(object):
         loss_yolo = YoloLoss(self._anchors, (self._grid_w, self._grid_h), self._batch_size,
                              lambda_coord=coord_scale, lambda_noobj=no_object_scale, lambda_obj=object_scale,
                              lambda_class=class_scale)
-        self._model.compile(loss=loss_yolo, optimizer=optimizer)
+        
+        self._model.compile(loss=loss_yolo, optimizer=optimizer, metrics=[loss_yolo.l_coord,loss_yolo.l_obj, loss_yolo.l_class])
 
         ############################################
         # Make a few callbacks
         ############################################
+        
+        #if run.get('reduce_lr_on_plateau'):
+		#	reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, min_lr=10e-7, verbose=1)
+		
 
         early_stop_cb = EarlyStopping(monitor='val_loss',
                                       min_delta=0.001,
@@ -167,11 +193,13 @@ class YOLO(object):
                                       mode='min',
                                       verbose=1)
 
-        tensorboard_cb = TensorBoard(log_dir=tb_logdir,
+        now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+        file_writer = tfsum.create_file_writer(tb_logdir + '/' + self._backend + '/' + now)
+        tensorboard_cb = TensorBoard(log_dir=tb_logdir + '/' + self._backend + '/' + now,
                                      histogram_freq=0,
                                      # write_batch_performance=True,
-                                     write_graph=True,
-                                     write_images=False)
+                                     profile_batch=0)
 
         root, ext = os.path.splitext(saved_weights_name)
         ckp_best_loss = ModelCheckpoint(root + "_bestLoss" + ext,
@@ -180,41 +208,49 @@ class YOLO(object):
                                         save_best_only=True,
                                         mode='min',
                                         period=1)
+        
         ckp_saver = ModelCheckpoint(root + "_ckp" + ext,
                                     verbose=1,
                                     period=10)
+
+
+        lr_rate = LearningRateScheduler(schedule,verbose=1)
+        
         map_evaluator_cb = MapEvaluation(self, valid_generator,
+                                         self.labels,
                                          save_best=True,
                                          save_name=root + "_bestMap" + ext,
-                                         tensorboard=tensorboard_cb,
+                                         writer=file_writer,
                                          iou_threshold=iou_threshold,
                                          score_threshold=score_threshold)
 
         if not isinstance(custom_callback, list):
             custom_callback = [custom_callback]
-        callbacks = [ckp_best_loss, ckp_saver, tensorboard_cb, map_evaluator_cb] + custom_callback
+        callbacks = [ckp_best_loss, ckp_saver, tensorboard_cb, map_evaluator_cb, lr_rate, ] + custom_callback
         if early_stop:
             callbacks.append(early_stop_cb)
 
         #############################
         # Start the training process
-        #############################
-
-        self._model.fit_generator(generator=train_generator,
-                                  steps_per_epoch=len(train_generator) * train_times,
-                                  epochs=warmup_epochs + nb_epochs,
-                                  verbose=2 if debug else 1,
-                                  validation_data=valid_generator,
-                                  validation_steps=len(valid_generator) * valid_times,
-                                  callbacks=callbacks,
-                                  workers=workers,
-                                  max_queue_size=max_queue_size)
+        #############################        
+        
+        self._model.fit(x=train_generator(mode='train').repeat(), 
+                        validation_data = valid_generator(mode='valid'),
+                        validation_steps =int(np.ceil((len(valid_imgs) * 100) / batch_size)),
+                        epochs=warmup_epochs + nb_epochs, 
+                        steps_per_epoch=int(np.ceil((len(train_imgs) * 100) / batch_size)),
+                        callbacks = callbacks,
+                        shuffle=True,
+                        max_queue_size=max_queue_size,
+                        workers=workers)
+        
 
     def get_inference_model(self):
         return self._model
 
     def predict(self, image, iou_threshold=0.5, score_threshold=0.5):
-
+        #print("image pred shape input", image.shape)
+        #print("self gray mode", self._gray_mode)
         if len(image.shape) == 3 and self._gray_mode:
             if image.shape[2] == 3:
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -224,15 +260,19 @@ class YOLO(object):
         elif len(image.shape) == 2:
             image = image[..., np.newaxis]
 
+        #print("self input sizes",  self._input_size[1], self._input_size[0])
         image = cv2.resize(image, (self._input_size[1], self._input_size[0]))
-        image = self._feature_extractor.normalize(image)
-        if len(image.shape) == 3:
+        #image = self._feature_extractor.normalize(image)
+        if len(image.shape) >= 3:
             input_image = image[np.newaxis, :]
+            #print("image shape 3:", input_image.shape)
         else:
             input_image = image[np.newaxis, ..., np.newaxis]
+            print("else clause image shape", input_image.shape)
 
         netout = self._model.predict(input_image)[0]
-
+        #print("netout", netout)
+        
         boxes = decode_netout(netout, self._anchors, self._nb_class, score_threshold, iou_threshold)
-
+        #print("boxes from predict function", boxes)
         return boxes

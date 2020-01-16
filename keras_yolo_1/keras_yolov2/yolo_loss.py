@@ -153,5 +153,6 @@ class YoloLoss(object):
         total_class_loss = self.class_loss(y_true, y_pred)
 
         loss = total_coord_loss + total_obj_loss + total_class_loss
-
+		
+		
         return loss

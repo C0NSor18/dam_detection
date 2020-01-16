@@ -13,63 +13,32 @@ Created on Fri Sep 27 14:05:17 2019
 
 @author: stephan
 """
-from tensorflow.keras.layers import Conv2D, Flatten, Input
+from tensorflow.keras.layers import Conv2D, Flatten, Input, GlobalAveragePooling2D, Dense
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications.densenet import DenseNet121
 
-#def build_densenet121_old(train_model = True, **kwargs):
-#	weights = kwargs.get('weights', 'imagenet')
-#	#num_classes = kwargs.get('num_classes')
-#	
-#	inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
-#	densenet = DenseNet121(include_top=False, input_tensor=inputs , weights=weights)
-#	x = densenet.output
-#	x = Conv2D(filters=128,kernel_size=(4,4),activation='relu')(x) # 8
-#	x = Conv2D(filters=64,kernel_size=(1,1),activation='relu')(x)
-#	preds = Conv2D(filters=2, kernel_size=(1,1),activation='softmax')(x) 
-#	if train_model:
-#		preds = Flatten()(preds)
-#		
-#	model = Model(inputs=densenet.input, outputs=preds)
-#	
-#
-#	#model.summary()
-#	model.summary()
-#	return model
+def build_densenet121(train_model=True, **kwargs):
+    inputs = Input(shape=(None, None, len(kwargs.get('channels')) ), name='inputlayer_0')
+    weights = kwargs.get('weights')
 
-def build_densenet121(train_model = True, **kwargs):
-	inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
-	resnet = DenseNet121(include_top=False, weights=None, input_tensor=inputs)
-	
-	x = resnet.output
-	x = Conv2D(filters = 512, kernel_size=(4,4), activation='relu')(x)
-	x = Conv2D(filters = 128, kernel_size=(1,1), activation='relu')(x)
-	preds = Conv2D(filters = kwargs.get('num_classes'), kernel_size=(1,1), activation='softmax')(x)
-	if train_model:
-		preds = Flatten()(preds)
+    if weights is None:
+        print("instantiated with random weights")
+        densenet121 = DenseNet121(input_tensor=inputs, weights=weights, include_top=False)
+        densenet121 = densenet121.output
+    else:
+        print("instantiated model with weights: {}".format(weights))
+        #dense_filter = Conv2D(filters=3, kernel_size=(3,3), padding='same')(inputs)
 
-	#preds = Dense(2, activation='softmax', name='fc1000')(x)
-	
-	model = Model(inputs=resnet.input, outputs=preds)
-	#model.summary()
-	
-	return model
-
-def build_densenet121_imagenet(train_model = True, **kwargs):
-    weights = kwargs.get('weights', 'imagenet')
-    #num_classes = kwargs.get('num_classes')
+        x = Conv2D(3, (1,1))(inputs)
+        densenet121 = DenseNet121(weights=weights, include_top=False)(x)
     
-    inputs = Input(shape=(None, None, len(kwargs.get('channels')) ))
-    dense_filter = Conv2D(filters=3, kernel_size=(3,3), padding='same')(inputs)
+    if kwargs.get('top') == False:
+        # top is not needed for object detectors
+        model = Model(inputs=inputs, outputs=densenet121)
+    else:
+        output = GlobalAveragePooling2D()(densenet121)
+        output = Dense(kwargs.get('num_classes'), activation='softmax')(output)
+        model = Model(inputs=inputs, outputs=output)
 
-    densenet = DenseNet121(include_top=False, weights=weights)(dense_filter)
-    #x = densenet.output
-    x = Conv2D(filters=128,kernel_size=(4,4),activation='relu')(densenet) # 8
-    x = Conv2D(filters=64,kernel_size=(1,1),activation='relu')(x)
-    preds = Conv2D(filters=kwargs.get('num_classes'), kernel_size=(1,1),activation='softmax')(x) 
-    if train_model:
-        preds = Flatten()(preds)
-    model = Model(inputs=inputs, outputs=preds)
-
-    #model.summary()
+    model.summary()
     return model

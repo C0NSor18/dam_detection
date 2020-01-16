@@ -3,6 +3,8 @@ import tensorflow as tf
 import numpy as np
 import tensorflow.keras
 
+# input image dimensions or content is wrong
+# pred boxes is wrong
 
 class MapEvaluation(tensorflow.keras.callbacks.Callback):
     """ Evaluate a given dataset using a given model.
@@ -26,7 +28,7 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
                  period=1,
                  save_best=False,
                  save_name=None,
-                 tensorboard=None):
+                 writer=None):
 
         super().__init__()
         self._yolo = yolo
@@ -38,17 +40,21 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
         self._period = period
         self._save_best = save_best
         self._save_name = save_name
-        self._tensorboard = tensorboard
+        self._file_writer = writer
 
         self.bestMap = 0
-
+        '''
         if not isinstance(self._tensorboard, tensorflow.keras.callbacks.TensorBoard) and self._tensorboard is not None:
             raise ValueError("Tensorboard object must be a instance from keras.callbacks.TensorBoard")
+        '''
 
     def on_epoch_end(self, epoch, logs={}):
 
         if epoch % self._period == 0 and self._period != 0:
-            _map, average_precisions = self.evaluate_map()
+            _map, average_precisions, precision, recall = self.evaluate_map()
+            f1 = (2 * precision * recall) / (precision + recall)
+            print('\n')
+            print("precision, recall, f1:", precision,recall, f1)
             print('\n')
             for label, average_precision in average_precisions.items():
                 print(self._yolo.labels[label], '{:.4f}'.format(average_precision))
@@ -61,20 +67,19 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
             else:
                 print("mAP did not improve from {}.".format(self.bestMap))
 
-            if self._tensorboard is not None and self._tensorboard.writer is not None:
-                summary = tf.Summary()
-                summary_value = summary.value.add()
-                summary_value.simple_value = _map
-                summary_value.tag = "val_mAP"
-                self._tensorboard.writer.add_summary(summary, epoch)
+
+            with self._file_writer.as_default(), tf.contrib.summary.always_record_summaries():
+                tf.contrib.summary.scalar('val_mAP', _map, step=epoch)
+                tf.contrib.summary.scalar('val_precision', precision, step=epoch)
+                tf.contrib.summary.scalar('val_recall', recall, step=epoch)
+                tf.contrib.summary.scalar('val_f1', f1, step=epoch)
+
 
     def evaluate_map(self):
-        average_precisions = self._calc_avg_precisions()
+        average_precisions, precision, recall = self._calc_avg_precisions()
         _map = sum(average_precisions.values()) / len(average_precisions)
-
-        return _map, average_precisions
-
-
+		
+        return _map, average_precisions, precision, recall
 
 
     def _calc_avg_precisions(self):
@@ -86,6 +91,7 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
                            for _ in range(self._generator.size())]
 
         for i, (raw_image, bbox, class_names) in enumerate(self._generator(mode='map')):
+            #print("class maps", class_names)
             raw_image = np.squeeze(raw_image.numpy())
             raw_height, raw_width, _ = raw_image.shape
 
@@ -111,13 +117,15 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
             # copy detections to all_detections
             for label in range(self._generator.num_classes()):
                 all_detections[i][label] = pred_boxes[pred_labels == label, :]
-
+            #print("the detections are", all_detections)
             annotations = self.load_annotation(bbox, class_names, self._labels)
-
+            #print("annotations are", annotations)
+            
             # copy ground truth to all_annotations
             for label in range(self._generator.num_classes()):
                 all_annotations[i][label] = annotations[annotations[:, 4] == label, :4].copy()
-
+            #print("generator num classes", self._generator.num_classes())
+            
         # compute mAP by comparing all detections and all annotations
         average_precisions = {}
 
@@ -129,10 +137,11 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
 
             for i in range(self._generator.size()):
                 detections = all_detections[i][label]
+                
                 annotations = all_annotations[i][label]
                 num_annotations += annotations.shape[0]
                 detected_annotations = []
-
+                
                 for d in detections:
                     scores = np.append(scores, d[4])
 
@@ -144,7 +153,9 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
                     overlaps = compute_overlap(np.expand_dims(d, axis=0), annotations)
                     assigned_annotation = np.argmax(overlaps, axis=1)
                     max_overlap = overlaps[0, assigned_annotation]
-
+                    
+                    #print("max overlap and iou threshold:, ", max_overlap, self._iou_threshold)
+                    #print("assigned annotation and detected_annotation", assigned_annotation, detected_annotations)
                     if max_overlap >= self._iou_threshold and assigned_annotation not in detected_annotations:
                         false_positives = np.append(false_positives, 0)
                         true_positives = np.append(true_positives, 1)
@@ -163,24 +174,33 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
             indices = np.argsort(-scores)
             false_positives = false_positives[indices]
             true_positives = true_positives[indices]
+            fp = np.sum(false_positives)
+            tp = np.sum(true_positives)      
 
-            # compute false positives and true positives
+  
+            # compute false positives and true positives for ROC
             false_positives = np.cumsum(false_positives)
             true_positives = np.cumsum(true_positives)
-
-            # compute recall and precision
+                
+            
+            # compute recall and precision curve (1 and 0 are added in ap calc in utils)
             recall = true_positives / num_annotations
             precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
-
+            
+            # singular precision/recall metric
+            rec = tp / num_annotations
+            prec = tp / (tp + fp)
+            
             # compute average precision
             average_precision = compute_ap(recall, precision)
             average_precisions[label] = average_precision
-
-        return average_precisions
+            #print("average precision computed as: ", average_precisions)
+        return average_precisions, prec, rec
     
     # custom load annotaiton function, does not scale ot multiple labels per image
     def load_annotation(self, bbox, class_name, labels):
         bbox = np.squeeze(bbox.numpy())
+
         class_name = np.squeeze(class_name.numpy(), axis=0)
         class_name = [x.decode("utf-8") for x in class_name]
         class_name = [labels.index(x) for x in class_name] # convert to integers
@@ -197,5 +217,6 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
     
         if len(annots) == 0:
             annots = [[]]
-    
+        
+        #print("annotations xmin, ymin, xmax, ymax is: ", annots)
         return np.array(annots)

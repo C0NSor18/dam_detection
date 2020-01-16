@@ -1,27 +1,24 @@
 {
     "model" : {
         "backend":              "Full Yolo",
-        "input_size_w":         448,
-        "input_size_h":         448,
+        "input_size_w":         257,
+        "input_size_h":         257,
+		"input_size_c":			5,
         "gray_mode":            false,
         "anchors":              [0.57273, 0.677385, 1.87446, 2.06253, 3.33843, 5.47434, 7.88282, 3.52778, 9.77052, 9.16828],
         "max_box_per_image":    10,        
-        "labels":               ["raccoon"]
+        "labels":               ["dam_image"]
     },
 
-    "parser_annotation_type":    "xml",
+    "parser_annotation_type":    "tfr",
 
     "train": {
-        "train_csv_file":       "",
-        "train_csv_base_path":  "",
-        "train_image_folder":   "/vol/tensusers2/sdooper/dam_detection/keras_yolo2/train_image_folder",
-        "train_annot_folder":   "/vol/tensusers2/sdooper/dam_detection/keras_yolo2/train_annot_folder",     
-
+        "train_tfr_folder":     "/vol/tensusers2/sdooper/dam_detection/datasets/bbox_data/train/",
         "callback":             null,
-        "train_times":          8,
+        "train_times":          1,
         "pretrained_weights":   "",
-        "batch_size":           16,
-        "learning_rate":        1e-4,
+        "batch_size":           10,
+        "learning_rate":        1e-5,
         "nb_epochs":            40,
         "warmup_epochs":        3,
 
@@ -42,17 +39,13 @@
     "valid": {
         "iou_threshold":        "0.5",
         "score_threshold":      "0.5",
-        "valid_csv_file":       "",
-        "valid_csv_base_path":  "",
-        "valid_image_folder":   "/vol/tensusers2/sdooper/dam_detection/keras_yolo2/valid_image_folder",
-        "valid_annot_folder":   "/vol/tensusers2/sdooper/dam_detection/keras_yolo2/valid_annot_folder",
-
+        "valid_tfr_folder":     "/vol/tensusers2/sdooper/dam_detection/datasets/bbox_data/valid/",
         "valid_times":          1
     },
 
     "backup":{
-        "create_backup":        true,
-        "redirect_model":       true,
+        "create_backup":        false,
+        "redirect_model":       false,
         "backup_path":          "../backup",
         "backup_prefix":        "Tiny_yolo_VOC"
     }
