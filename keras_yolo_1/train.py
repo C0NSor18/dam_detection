@@ -9,6 +9,8 @@ import argparse
 import tensorflow.keras
 import json
 import os
+from tfdeterminism import patch
+patch()
 
 argparser = argparse.ArgumentParser(
     description='Train and validate YOLO_v2 model on any dataset')
@@ -122,8 +124,8 @@ def _main_(args):
     #   Start the training process 
     ###############################
 
-    yolo.train(train_imgs=train_imgs[0:25],
-               valid_imgs=valid_imgs[0:2],
+    yolo.train(train_imgs=train_imgs,
+               valid_imgs=valid_imgs,
                train_times=config['train']['train_times'],
                valid_times=config['valid']['valid_times'],
                nb_epochs=config['train']['nb_epochs'],

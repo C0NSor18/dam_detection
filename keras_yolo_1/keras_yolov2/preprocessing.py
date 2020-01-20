@@ -169,17 +169,17 @@ class BatchGenerator(object):
             [
                 # apply the following augmenters to most images
                 iaa.Fliplr(0.5),  # horizontally flip 50% of all images
-                iaa.Flipud(0.2),  # vertically flip 20% of all images
-                sometimes(iaa.Crop(percent=(0, 0.1))), # crop images by 0-10% of their height/width
-                sometimes(iaa.Affine(
-                    scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},  # scale images to 80-120% of their size, per axis
-                    translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},  # translate by -20 to +20 percent
-                    rotate=(-5, 5),  # rotate by -45 to +45 degrees
-                    shear=(-5, 5),  # shear by -16 to +16 degrees
+                iaa.Flipud(0.2)  # vertically flip 20% of all images
+                #sometimes(iaa.Crop(percent=(0, 0.1))), # crop images by 0-10% of their height/width
+                #sometimes(iaa.Affine(
+                #    scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},  # scale images to 80-120% of their size, per axis
+                #    translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},  # translate by -20 to +20 percent
+                #    rotate=(-5, 5),  # rotate by -45 to +45 degrees
+                #    shear=(-5, 5),  # shear by -16 to +16 degrees
                     # order=[0, 1], # use nearest neighbour or bilinear interpolation (fast)
                     # cval=(0, 255), # if mode is constant, use a cval between 0 and 255
                     # mode=ia.ALL # use any of scikit-image's warping modes (see 2nd image from the top for examples)
-                ))
+                #))
             ],
             random_order=True
         )
@@ -222,15 +222,16 @@ class BatchGenerator(object):
             'image/channel/AVE': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # Elevation
             'image/channel/NDWI': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
             'image/channel/MNDWI': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
-            'image/channel/AWEINSH': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
-            'image/channel/AWEISH': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
+            #'image/channel/AWEINSH': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
+            #'image/channel/AWEISH': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
             'image/channel/PIXEL_LABEL': tf.io.FixedLenFeature([257, 257], dtype=tf.float32), # water index
-            'image/object/bbox/xmin': tf.io.FixedLenFeature(1, dtype=tf.int64), 
-            'image/object/bbox/xmax': tf.io.FixedLenFeature(1, dtype=tf.int64),
-            'image/object/bbox/ymin': tf.io.FixedLenFeature(1, dtype=tf.int64),
-            'image/object/bbox/ymax': tf.io.FixedLenFeature(1, dtype=tf.int64),
-            'image/object/class/text': tf.io.FixedLenFeature(1, dtype=tf.string),
-            'image/object/class/label': tf.io.FixedLenFeature(1, dtype=tf.int64)
+            'image/channel/PIXEL_LABEL_CC': tf.io.FixedLenFeature([257, 257], dtype=tf.float32),
+            'image/object/bbox/xmin': tf.io.VarLenFeature(dtype=tf.int64), 
+            'image/object/bbox/xmax': tf.io.VarLenFeature(dtype=tf.int64),
+            'image/object/bbox/ymin': tf.io.VarLenFeature( dtype=tf.int64),
+            'image/object/bbox/ymax': tf.io.VarLenFeature( dtype=tf.int64),
+            'image/object/class/text': tf.io.VarLenFeature( dtype=tf.string),
+            'image/object/class/label': tf.io.VarLenFeature( dtype=tf.int64)
         }
 
         return tf.io.parse_single_example(example_proto, featuresDict)
@@ -265,17 +266,25 @@ class BatchGenerator(object):
         # bounding box locations
         # ===============
         
+        '''
         xmin = features['image/object/bbox/xmin']
         xmax = features['image/object/bbox/xmax']
         ymin = features['image/object/bbox/ymin']
         ymax = features['image/object/bbox/ymax']
         class_name = features['image/object/class/text']
-
-        
         obj = [tf.concat([xmin, xmax, ymin, ymax], axis=0)]
+        '''
+        
+        class_name = tf.sparse.to_dense(features['image/object/class/text'], default_value='0')
+
+        obj = tf.stack([tf.sparse.to_dense(features['image/object/bbox/xmin']),
+                        tf.sparse.to_dense(features['image/object/bbox/xmax']),
+                        tf.sparse.to_dense(features['image/object/bbox/ymin']),
+                        tf.sparse.to_dense(features['image/object/bbox/ymax'])
+                        ], axis=1)
         
         # possibly redundant, but now for safe keeping, (attempt at deepcopying the variable)
-        orig_obj = tf.identity(obj)
+        # orig_obj = tf.identity(obj)
         
         #image, all_objs = tf.numpy_function(self.aug_image,
         #                                    [img, obj, True],
@@ -314,17 +323,24 @@ class BatchGenerator(object):
         
         # ===============
         # bounding box locations
-
         # ===============
-        
+        '''
         xmin = features['image/object/bbox/xmin']
         xmax = features['image/object/bbox/xmax']
         ymin = features['image/object/bbox/ymin']
         ymax = features['image/object/bbox/ymax']
         class_name = features['image/object/class/text']
-
         all_obj = [tf.concat([xmin, xmax, ymin, ymax], axis=0)]
+        '''
+        all_obj = tf.stack([tf.sparse.to_dense(features['image/object/bbox/xmin']),
+                            tf.sparse.to_dense(features['image/object/bbox/xmax']),
+                            tf.sparse.to_dense(features['image/object/bbox/ymin']),
+                            tf.sparse.to_dense(features['image/object/bbox/ymax'])
+                            ], axis=1)
+        
+        class_name = tf.sparse.to_dense(features['image/object/class/text'], default_value='0')    
     
+        
         # Create and preprocess images and labels for network
         x_batch, y_batch = tf.numpy_function(self.get_batch,
                                             [img, all_obj, self._config['ANCHORS'], class_name, False],
@@ -348,6 +364,8 @@ class BatchGenerator(object):
             jitter: image augmentations yes or no
         
         '''
+        
+        # 0 0 w h 
         all_anchors = [BoundBox(0, 0, anchors[2 * i], anchors[2 * i + 1])
                        for i in range(int(len(anchors) // 2))]
         # rewrite everything from batch level to single example
@@ -365,8 +383,7 @@ class BatchGenerator(object):
         
         # augment input image and fix object's position and size
         img, all_objs = self.aug_image(img, objs, jitter= jitter)
-        
-        
+
         
         # this is a valid for loop (belongs to a single example)
         for class_idx, obj in enumerate(all_objs):
@@ -399,8 +416,9 @@ class BatchGenerator(object):
                     obj_indx = self._config['LABELS'].index(class_names[class_idx]) # DOES NOT WORK
                     # center relative to grid cell pixels:
                     # if center is 10 pixels and grid cell is 32 pixels: center_w=5/16, "width is 5/16th of grid cell" 
+                    # 90 / (300/10) = 3
                     center_w = (obj[1] - obj[0]) / (
-                                float(self._config['IMAGE_W']) / self._config['GRID_W']) #self._config['IMAGE_W'], self._config['GRID_W']
+                                float(self._config['IMAGE_W']) / self._config['GRID_W'])
                     center_h = (obj[3] - obj[2]) / (
                                 float(self._config['IMAGE_H']) / self._config['GRID_H'])
     
@@ -446,13 +464,13 @@ class BatchGenerator(object):
     
             x_batch[instance_count] = img
     
-        
         return x_batch, y_batch.astype(np.float32)
         
     def aug_image(self, image, objs, jitter=True):
         h = image.shape[0]
         w = image.shape[1]
         all_objs = copy.deepcopy(objs)
+        
         if jitter:
             bbs = []
             for obj in all_objs:
@@ -462,17 +480,18 @@ class BatchGenerator(object):
                 ymin = obj[2]
                 ymax = obj[3]            
                 bbs.append(BoundingBox(x1=xmin, x2=xmax, y1=ymin, y2=ymax))           
-                bbs = BoundingBoxesOnImage(bbs, shape=image.shape)
-                image, bbs = self._aug_pipe(image=image, bounding_boxes=bbs)
-                bbs = bbs.remove_out_of_image().clip_out_of_image()
+            
+            bbs = BoundingBoxesOnImage(bbs, shape=image.shape)
+            image, bbs = self._aug_pipe(image=image, bounding_boxes=bbs)
+            bbs = bbs.remove_out_of_image().clip_out_of_image()
+
+            if len(all_objs) != 0:
+                for i in range(len(bbs.bounding_boxes)):
+                    all_objs[i][0] = bbs.bounding_boxes[i].x1 # xmin
+                    all_objs[i][1] = bbs.bounding_boxes[i].x2 # xmax
+                    all_objs[i][2] = bbs.bounding_boxes[i].y1 # ymin
+                    all_objs[i][3] = bbs.bounding_boxes[i].y2 # ymax
     
-                if len(all_objs) != 0:
-                    for i in range(len(bbs.bounding_boxes)):
-                        all_objs[i][0] = bbs.bounding_boxes[i].x1 # xmin
-                        all_objs[i][1] = bbs.bounding_boxes[i].x2 # xmax
-                        all_objs[i][2] = bbs.bounding_boxes[i].y1 # ymin
-                        all_objs[i][3] = bbs.bounding_boxes[i].y2 # ymax
-        
         # resize the image to standard size
         image = cv2.resize(image, (self._config['IMAGE_W'], self._config['IMAGE_H'])) 
         '''
@@ -500,8 +519,9 @@ class BatchGenerator(object):
             
         dataset = tf.data.TFRecordDataset(self._tfr_path, compression_type='GZIP')
         dataset = dataset.map(self.parse_serialized_example)
+        dataset = dataset.apply(tf.data.experimental.ignore_errors())
         
-        if mode is 'train':
+        if mode == 'train':
             batch_size = self._config['BATCH_SIZE']
             dataset = dataset.map(self.parse_features)
             dataset = dataset.shuffle(buffer_size=1000)
@@ -509,14 +529,14 @@ class BatchGenerator(object):
             dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
             return dataset
     
-        elif mode is 'valid':
+        elif mode == 'valid':
             batch_size = self._config['BATCH_SIZE']
             dataset = dataset.map(self.parse_features)
             dataset = dataset.batch(batch_size, drop_remainder=True)
             dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
             return dataset
         
-        elif mode is 'map':
+        elif mode == 'map':
             batch_size = 1
             dataset = dataset.map(self.parse_features_annot)
             dataset = dataset.shuffle(buffer_size=1000)

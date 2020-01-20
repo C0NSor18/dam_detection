@@ -124,18 +124,25 @@ def main(args):
 
     input_size = (config['model']['input_size_h'], config['model']['input_size_w'], 3)
     feature_extractor = import_feature_extractor(config['model']['backend'], input_size)
+    
+    # 300/10 = 30
     grid_w = config['model']['input_size_w']/feature_extractor.get_output_shape()[1]
     grid_h = config['model']['input_size_h']/feature_extractor.get_output_shape()[0]
 
     # run k_mean to find the anchors
     annotation_dims = []
     for image in train_imgs:
-        cell_w = image['width']/grid_w
-        cell_h = image['height']/grid_h
+        
+        # convert to a "new" grid size if the image w/h deviates from wanted image size
+        # 300 / 10 = 10
+        cell_w = image['width'] / grid_w
+        cell_h = image['height'] / grid_h
 
         for obj in image['object']:
-            relative_w = (float(obj['xmax']) - float(obj['xmin']))/cell_w
-            relatice_h = (float(obj["ymax"]) - float(obj['ymin']))/cell_h
+            # ... divided by 10 (a grid size)
+            # 90 / 10 = 9
+            relative_w = (float(obj['xmax']) - float(obj['xmin'])) / cell_w
+            relatice_h = (float(obj["ymax"]) - float(obj['ymin'])) / cell_h
             annotation_dims.append(tuple(map(float, (relative_w, relatice_h))))
 
     annotation_dims = np.array(annotation_dims)

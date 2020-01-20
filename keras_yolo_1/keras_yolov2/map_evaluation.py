@@ -190,6 +190,7 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
             # singular precision/recall metric
             rec = tp / num_annotations
             prec = tp / (tp + fp)
+            print("tp and fp:", tp,fp)
             
             # compute average precision
             average_precision = compute_ap(recall, precision)
@@ -200,16 +201,18 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
     # custom load annotaiton function, does not scale ot multiple labels per image
     def load_annotation(self, bbox, class_name, labels):
         bbox = np.squeeze(bbox.numpy())
-
+        # always reshape bbox into a 2d array
+        bbox = np.reshape(bbox, (-1,4))
+        bbox_dim = bbox.shape
+        bbox = np.ravel(bbox, order='F')
+        
         class_name = np.squeeze(class_name.numpy(), axis=0)
         class_name = [x.decode("utf-8") for x in class_name]
-        class_name = [labels.index(x) for x in class_name] # convert to integers
-        all_objs = np.array([np.concatenate([bbox, class_name], axis=0)])
+        class_name = np.array([labels.index(x) for x in class_name]) # convert to integers
+    
         
-        # this is a conversion to xmin ymin xmax ymax!!!
-        # DOES NOT WORK FOR MULTIPLE OBJECTS IN ONE IMAGE
-        # but then again, the entire program is not build for it :)
-        
+        all_objs = np.reshape( np.concatenate( (bbox, class_name) ), (bbox_dim[0], 5), order='F') 
+    
         annots = []
         for obj in all_objs:
             annot = [obj[0], obj[2], obj[1], obj[3], obj[4]]
@@ -217,6 +220,6 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
     
         if len(annots) == 0:
             annots = [[]]
-        
+    
         #print("annotations xmin, ymin, xmax, ymax is: ", annots)
         return np.array(annots)

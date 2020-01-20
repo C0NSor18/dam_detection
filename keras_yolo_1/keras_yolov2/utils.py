@@ -109,6 +109,7 @@ def decode_netout(netout, anchors, nb_class, obj_threshold=0.5, nms_threshold=0.
 
     # decode the output by the network
     netout[..., 4] = _sigmoid(netout[..., 4])
+    #print(netout[...,5:])
     netout[..., 5:] = netout[..., 4][..., np.newaxis] * _softmax(netout[..., 5:])
     netout[..., 5:] *= netout[..., 5:] > float(obj_threshold)
 

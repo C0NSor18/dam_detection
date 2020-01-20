@@ -16,14 +16,40 @@ import os
 import datetime
 
 
-def schedule(epoch, lr):
-    if epoch == 0:
-        learning_rate = 0.00001
+class LearningRateScheduler2(tf.keras.callbacks.Callback):
+    """Learning rate scheduler which sets the learning rate according to schedule.
+
+    Arguments:
+      schedule: a function that takes an epoch index
+          (integer, indexed from 0) and current learning rate
+          as inputs and returns a new learning rate as output (float).
+    """
+
+    def __init__(self, schedule, lr_start, file_writer):
+        super(LearningRateScheduler2, self).__init__()
+        self.schedule = schedule
+        self.start_lr = lr_start
+        self.file_writer = file_writer
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if not hasattr(self.model.optimizer, 'lr'):
+            raise ValueError('Optimizer must have a "lr" attribute.')
+        # Get the current learning rate from model's optimizer.
+        lr = float(tf.keras.backend.get_value(self.model.optimizer.lr))
+        # Call schedule function to get the scheduled learning rate.
+        scheduled_lr = self.schedule(epoch, lr, self.start_lr)
+        # Set the value back to the optimizer before this epoch starts
+        tf.keras.backend.set_value(self.model.optimizer.lr, scheduled_lr)
+        
+        print('\nEpoch %05d: Learning rate is %6.6f.' % (epoch, scheduled_lr))
+        with self.file_writer.as_default(), tf.contrib.summary.always_record_summaries():
+            tf.contrib.summary.scalar('learning_rate', scheduled_lr, step=epoch)
+
+def schedule(epoch, lr, start_lr):   
+    if epoch <10:
+        learning_rate = start_lr * ((epoch+1) / 10) ** 2 
     
-    if epoch < 11:
-        learning_rate = 0.0005 * (epoch / 10) ** 2
-    
-    if epoch >= 11:
+    if epoch >= 10:
         decay_rate = 0.0005
         learning_rate = lr /(1+decay_rate*epoch)
 
@@ -82,7 +108,23 @@ class YOLO(object):
 
         # print a summary of the whole model
         self._model.summary()
-
+        
+        # calculate anchors in terms of grid cells
+        
+        self._anchors = np.array(self._anchors)
+        print("length", len(self._anchors/2))
+        self._anchors = np.reshape(self._anchors, newshape=(int(len(self._anchors)/2), 2))
+        
+        self._anchors[:,0] = self._anchors[:,0] * self._grid_w
+        self._anchors[:,1] = self._anchors[:,1] * self._grid_h
+        
+        self._anchors = self._anchors.flatten()
+        
+        self._anchors = self._anchors.tolist()
+        
+        print(self._anchors)
+        
+        
         # declare class variables
         self._batch_size = None
         self._object_scale = None
@@ -186,13 +228,14 @@ class YOLO(object):
         #if run.get('reduce_lr_on_plateau'):
 		#	reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, min_lr=10e-7, verbose=1)
 		
-
+        '''
         early_stop_cb = EarlyStopping(monitor='val_loss',
                                       min_delta=0.001,
-                                      patience=3,
+                                      patience=50,
                                       mode='min',
                                       verbose=1)
-
+        '''
+        
         now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
         file_writer = tfsum.create_file_writer(tb_logdir + '/' + self._backend + '/' + now)
@@ -214,7 +257,7 @@ class YOLO(object):
                                     period=10)
 
 
-        lr_rate = LearningRateScheduler(schedule,verbose=1)
+        lr_rate = LearningRateScheduler2(schedule, learning_rate, file_writer)
         
         map_evaluator_cb = MapEvaluation(self, valid_generator,
                                          self.labels,
